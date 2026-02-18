@@ -100,7 +100,8 @@ func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 		return Result{}, err
 	}
 
-	if isLikelyMarkdown(resp.Body, resp.ContentType) {
+	// Honor explicit markdown responses from the server, even if the payload is MDX/JSX-heavy.
+	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
 		return Result{Markdown: normalizeMarkdown(resp.Body), Source: "http-markdown", FinalURL: resp.FinalURL}, nil
 	}
 
@@ -118,7 +119,7 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 		return Result{}, err
 	}
 
-	if isLikelyMarkdown(resp.Body, resp.ContentType) {
+	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
 		return Result{Markdown: normalizeMarkdown(resp.Body), Source: "http-markdown", FinalURL: resp.FinalURL}, nil
 	}
 
@@ -329,6 +330,10 @@ func isLikelyMarkdown(body []byte, contentType string) bool {
 	}
 
 	return false
+}
+
+func isMarkdownContentType(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "text/markdown")
 }
 
 func looksLikeJSONPayload(sample, contentType string) bool {
