@@ -1,4 +1,4 @@
-module github.com/fred/agent-fetch
+module github.com/firede/agent-fetch
 
 go 1.25.0
 

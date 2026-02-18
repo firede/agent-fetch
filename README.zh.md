@@ -20,6 +20,22 @@
 - `static`：只走静态路径，不启用浏览器回退
 - `browser`：始终使用无头浏览器
 
+## 安装（使用 Go）
+
+如果本地已经安装 Go，可直接执行：
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
+```
+
+安装指定版本：
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.0
+```
+
+请确保 `$(go env GOPATH)/bin`（通常是 `~/go/bin`）已加入 `PATH`。
+
 ## 安装（从 Releases 下载）
 
 1. 在 [GitHub Releases](https://github.com/firede/agent-fetch/releases) 页面下载对应平台的压缩包。

@@ -20,6 +20,22 @@ Web fetch results are often raw HTML/JS/CSS, which is noisy for LLMs. This tool 
 - `static`: never uses browser fallback
 - `browser`: always uses headless browser
 
+## Install (with Go)
+
+If Go is already installed locally:
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
+```
+
+Install a specific version:
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.0
+```
+
+Make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is in your `PATH`.
+
 ## Install (from Releases)
 
 1. Download the archive for your platform from the [GitHub Releases](https://github.com/firede/agent-fetch/releases) page.

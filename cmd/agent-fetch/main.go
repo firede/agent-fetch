@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fred/agent-fetch/internal/fetcher"
+	"github.com/firede/agent-fetch/internal/fetcher"
 )
 
 type headerFlags struct {
