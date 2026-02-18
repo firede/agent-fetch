@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,63 +10,83 @@ import (
 	"time"
 
 	"github.com/firede/agent-fetch/internal/fetcher"
+	"github.com/urfave/cli/v3"
 )
 
-type headerFlags struct {
-	values []string
+type exitStatusError struct {
+	code int
+	msg  string
 }
 
-func (h *headerFlags) String() string {
-	return strings.Join(h.values, ",")
-}
-
-func (h *headerFlags) Set(value string) error {
-	h.values = append(h.values, value)
-	return nil
+func (e *exitStatusError) Error() string {
+	return e.msg
 }
 
 func main() {
-	cfg := fetcher.DefaultConfig()
-	headers := &headerFlags{}
+	defaultCfg := fetcher.DefaultConfig()
+	cmd := &cli.Command{
+		Name:      "agent-fetch",
+		Usage:     "Fetch web content and return markdown-friendly output",
+		UsageText: "agent-fetch [options] <url>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "mode", Value: defaultCfg.Mode, Usage: "fetch mode: auto|static|browser|raw"},
+			&cli.DurationFlag{Name: "timeout", Value: defaultCfg.Timeout, Usage: "HTTP timeout"},
+			&cli.DurationFlag{Name: "browser-timeout", Value: defaultCfg.BrowserTimeout, Usage: "browser mode timeout"},
+			&cli.DurationFlag{Name: "network-idle", Value: defaultCfg.NetworkIdle, Usage: "required network idle time in browser mode"},
+			&cli.StringFlag{Name: "wait-selector", Usage: "CSS selector to wait for in browser mode"},
+			&cli.StringFlag{Name: "user-agent", Value: defaultCfg.UserAgent, Usage: "User-Agent header"},
+			&cli.Int64Flag{Name: "max-body-bytes", Value: defaultCfg.MaxBodyBytes, Usage: "max response bytes to read"},
+			&cli.StringSliceFlag{
+				Name:  "header",
+				Usage: "custom request header, repeatable. Example: --header 'Authorization: Bearer token'",
+			},
+		},
+		Action: func(ctx context.Context, c *cli.Command) error {
+			if c.Args().Len() != 1 {
+				_ = cli.ShowRootCommandHelp(c)
+				return &exitStatusError{code: 2}
+			}
 
-	flag.StringVar(&cfg.Mode, "mode", cfg.Mode, "fetch mode: auto|static|browser|raw")
-	flag.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "HTTP timeout")
-	flag.DurationVar(&cfg.BrowserTimeout, "browser-timeout", cfg.BrowserTimeout, "browser mode timeout")
-	flag.DurationVar(&cfg.NetworkIdle, "network-idle", cfg.NetworkIdle, "required network idle time in browser mode")
-	flag.StringVar(&cfg.WaitSelector, "wait-selector", "", "CSS selector to wait for in browser mode")
-	flag.StringVar(&cfg.UserAgent, "user-agent", cfg.UserAgent, "User-Agent header")
-	flag.Int64Var(&cfg.MaxBodyBytes, "max-body-bytes", cfg.MaxBodyBytes, "max response bytes to read")
-	flag.Var(headers, "header", "custom request header, repeatable. Example: -header 'Authorization: Bearer token'")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] <url>\n\n", os.Args[0])
-		flag.PrintDefaults()
+			cfg := fetcher.DefaultConfig()
+			cfg.Mode = c.String("mode")
+			cfg.Timeout = c.Duration("timeout")
+			cfg.BrowserTimeout = c.Duration("browser-timeout")
+			cfg.NetworkIdle = c.Duration("network-idle")
+			cfg.WaitSelector = c.String("wait-selector")
+			cfg.UserAgent = c.String("user-agent")
+			cfg.MaxBodyBytes = c.Int64("max-body-bytes")
+
+			parsedHeaders, err := parseHeaders(c.StringSlice("header"))
+			if err != nil {
+				return &exitStatusError{code: 2, msg: fmt.Sprintf("invalid header: %v", err)}
+			}
+			cfg.Headers = parsedHeaders
+
+			url := c.Args().First()
+			reqCtx, cancel := context.WithTimeout(ctx, maxDuration(cfg.Timeout, cfg.BrowserTimeout)+5*time.Second)
+			defer cancel()
+
+			res, err := fetcher.Fetch(reqCtx, url, cfg)
+			if err != nil {
+				return &exitStatusError{code: 1, msg: fmt.Sprintf("fetch failed: %v", err)}
+			}
+
+			if _, err := os.Stdout.WriteString(res.Markdown); err != nil {
+				return &exitStatusError{code: 1, msg: fmt.Sprintf("write failed: %v", err)}
+			}
+			return nil
+		},
 	}
-	flag.Parse()
 
-	if flag.NArg() != 1 {
-		flag.Usage()
-		os.Exit(2)
-	}
-	url := flag.Arg(0)
-
-	parsedHeaders, err := parseHeaders(headers.values)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "invalid header: %v\n", err)
-		os.Exit(2)
-	}
-	cfg.Headers = parsedHeaders
-
-	ctx, cancel := context.WithTimeout(context.Background(), maxDuration(cfg.Timeout, cfg.BrowserTimeout)+5*time.Second)
-	defer cancel()
-
-	res, err := fetcher.Fetch(ctx, url, cfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "fetch failed: %v\n", err)
-		os.Exit(1)
-	}
-
-	if _, err := os.Stdout.WriteString(res.Markdown); err != nil {
-		fmt.Fprintf(os.Stderr, "write failed: %v\n", err)
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		var exitErr *exitStatusError
+		if errors.As(err, &exitErr) {
+			if msg := strings.TrimSpace(exitErr.msg); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			}
+			os.Exit(exitErr.code)
+		}
+		// urfave/cli already prints usage/parse errors to ErrWriter by default.
 		os.Exit(1)
 	}
 }
