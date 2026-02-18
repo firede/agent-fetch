@@ -31,7 +31,7 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
 安装指定版本：
 
 ```bash
-go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.0
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.1
 ```
 
 请确保 `$(go env GOPATH)/bin`（通常是 `~/go/bin`）已加入 `PATH`。

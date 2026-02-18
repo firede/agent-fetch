@@ -31,7 +31,7 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
 Install a specific version:
 
 ```bash
-go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.0
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.1
 ```
 
 Make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is in your `PATH`.
