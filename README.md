@@ -8,6 +8,8 @@ A Go CLI that always tries to return Markdown for web pages in AI-agent workflow
 
 Web fetch results are often raw HTML/JS/CSS, which is noisy for LLMs. This tool wraps a fallback pipeline so agents can expect Markdown output.
 
+If you use tools like Codex or Claude Code, note that they may already include built-in HTML simplification/fetching. Whether you still need `agent-fetch` depends on your workflow.
+
 ## Behavior
 
 `agent-fetch` uses four modes:
@@ -33,7 +35,7 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
 Install a specific version:
 
 ```bash
-go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.1
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.2.0
 ```
 
 Make sure `$(go env GOPATH)/bin` (usually `~/go/bin`) is in your `PATH`.

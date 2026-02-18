@@ -8,6 +8,8 @@
 
 网页抓取结果通常是原始 HTML/JS/CSS，会给 LLM 带来大量噪音和 token 开销。这个工具封装了分级 fallback 流程，让 Agent 更稳定地拿到 Markdown 内容。
 
+如果你使用 Codex、Claude Code 等工具，需要注意它们可能已内置 HTML 简化/抓取能力。是否仍需要 `agent-fetch`，应根据你的场景判断。
+
 ## 行为说明
 
 `agent-fetch` 提供四种模式：
@@ -33,7 +35,7 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
 安装指定版本：
 
 ```bash
-go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.1.1
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.2.0
 ```
 
 请确保 `$(go env GOPATH)/bin`（通常是 `~/go/bin`）已加入 `PATH`。
