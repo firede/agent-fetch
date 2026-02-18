@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Go build artifacts
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/agent-fetch
+
+# Go coverage
+coverage.out
+*.coverprofile
+
+# Go workspace / tool files
+go.work.sum
+
+# Editor folders
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp
