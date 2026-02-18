@@ -10,15 +10,16 @@
 
 ## 行为说明
 
-`agent-fetch` 提供三种模式：
+`agent-fetch` 提供四种模式：
 
 - `auto`（默认）：
   - 先用 `Accept: text/markdown` 请求
-  - 若返回内容已判定为 Markdown，直接输出
+  - 若返回为 `text/markdown` 或内容已判定为 Markdown，直接输出
   - 否则执行静态 HTML 正文抽取并转换为 Markdown
   - 若静态结果质量较低，再回退到无头浏览器渲染后转换
 - `static`：只走静态路径，不启用浏览器回退
 - `browser`：始终使用无头浏览器
+- `raw`：带 `Accept: text/markdown` 发起一次 HTTP 请求，并将该响应体原样输出（不做回退/转换）
 
 ## 安装（使用 Go）
 
@@ -69,10 +70,11 @@ agent-fetch <url>
 ```bash
 agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+agent-fetch --mode raw https://example.com
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```
 
-抓取成功内容输出到 `stdout`（Markdown）；错误信息输出到 `stderr`。
+抓取成功内容输出到 `stdout`（`raw` 模式为单次 HTTP 响应体原样输出）；错误信息输出到 `stderr`。
 
 ## 构建
 

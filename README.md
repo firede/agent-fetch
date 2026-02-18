@@ -10,15 +10,16 @@ Web fetch results are often raw HTML/JS/CSS, which is noisy for LLMs. This tool 
 
 ## Behavior
 
-`agent-fetch` uses three modes:
+`agent-fetch` uses four modes:
 
 - `auto` (default):
   - Request with `Accept: text/markdown`
-  - If response already looks like Markdown, return it
+  - If response is `text/markdown` or already looks like Markdown, return it
   - Else do static HTML extraction + convert to Markdown
   - If static result quality is too low, fallback to headless browser render and convert
 - `static`: never uses browser fallback
 - `browser`: always uses headless browser
+- `raw`: send `Accept: text/markdown`, then print that single HTTP response body as-is (no fallback/conversion)
 
 ## Install (with Go)
 
@@ -69,10 +70,11 @@ Common flags:
 ```bash
 agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+agent-fetch --mode raw https://example.com
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```
 
-All fetched content is printed to `stdout` as Markdown. Errors are printed to `stderr`.
+Fetched content is printed to `stdout` (`raw` mode prints the single HTTP response body unprocessed). Errors are printed to `stderr`.
 
 ## Build
 

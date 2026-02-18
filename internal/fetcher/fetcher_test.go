@@ -114,6 +114,41 @@ Agents are increasingly capable.
 	}
 }
 
+func TestFetchStaticRespectsTextMarkdownForMDXPayload(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		fmt.Fprint(w, `# Overview
+
+export const LogoCarousel = () => {
+  return <img src="/logo.svg" alt="logo" />;
+};
+
+## Why Agent Skills?
+
+Agents are increasingly capable.
+`)
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeStatic
+	cfg.Timeout = 5 * time.Second
+
+	res, err := Fetch(context.Background(), ts.URL, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Source != "http-markdown" {
+		t.Fatalf("expected source http-markdown, got %q", res.Source)
+	}
+	if !strings.Contains(res.Markdown, "# Overview") {
+		t.Fatalf("expected markdown to preserve overview heading, got: %q", res.Markdown)
+	}
+	if !strings.Contains(res.Markdown, "## Why Agent Skills?") {
+		t.Fatalf("expected markdown to preserve why heading, got: %q", res.Markdown)
+	}
+}
+
 func TestFetchStaticConvertsHTML(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
@@ -142,6 +177,68 @@ func TestFetchStaticConvertsHTML(t *testing.T) {
 	}
 	if !strings.Contains(res.Markdown, "Static Page") {
 		t.Fatalf("unexpected markdown output: %q", res.Markdown)
+	}
+}
+
+func TestFetchAutoFallsBackWhenMarkdownBodyIsEmpty(t *testing.T) {
+	originalBrowserFn := browserHTMLToMarkdownFn
+	browserHTMLToMarkdownFn = func(_ context.Context, _ string, _ Config) (string, string, error) {
+		return "# Browser Fallback\n", "https://browser.example/final", nil
+	}
+	defer func() {
+		browserHTMLToMarkdownFn = originalBrowserFn
+	}()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		fmt.Fprint(w, " \n\t ")
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeAuto
+	cfg.Timeout = 5 * time.Second
+
+	res, err := Fetch(context.Background(), ts.URL, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Source != "browser" {
+		t.Fatalf("expected source browser, got %q", res.Source)
+	}
+	if !strings.Contains(res.Markdown, "Browser Fallback") {
+		t.Fatalf("unexpected markdown output: %q", res.Markdown)
+	}
+}
+
+func TestFetchRawReturnsBodyAsIs(t *testing.T) {
+	var sawAcceptMarkdown bool
+	rawBody := "  <html><body><h1>Raw</h1></body></html>\n"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept"), "text/markdown") {
+			sawAcceptMarkdown = true
+		}
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, rawBody)
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeRaw
+	cfg.Timeout = 5 * time.Second
+
+	res, err := Fetch(context.Background(), ts.URL, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sawAcceptMarkdown {
+		t.Fatal("expected Accept: text/markdown in raw mode")
+	}
+	if res.Source != "http-raw" {
+		t.Fatalf("expected source http-raw, got %q", res.Source)
+	}
+	if res.Markdown != rawBody {
+		t.Fatalf("expected raw response body to be preserved, got: %q", res.Markdown)
 	}
 }
 

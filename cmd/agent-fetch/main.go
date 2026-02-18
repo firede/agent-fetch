@@ -29,7 +29,7 @@ func main() {
 	cfg := fetcher.DefaultConfig()
 	headers := &headerFlags{}
 
-	flag.StringVar(&cfg.Mode, "mode", cfg.Mode, "fetch mode: auto|static|browser")
+	flag.StringVar(&cfg.Mode, "mode", cfg.Mode, "fetch mode: auto|static|browser|raw")
 	flag.DurationVar(&cfg.Timeout, "timeout", cfg.Timeout, "HTTP timeout")
 	flag.DurationVar(&cfg.BrowserTimeout, "browser-timeout", cfg.BrowserTimeout, "browser mode timeout")
 	flag.DurationVar(&cfg.NetworkIdle, "network-idle", cfg.NetworkIdle, "required network idle time in browser mode")

@@ -25,6 +25,7 @@ const (
 	ModeAuto              = "auto"
 	ModeStatic            = "static"
 	ModeBrowser           = "browser"
+	ModeRaw               = "raw"
 	maxMarkdownSampleSize = 12000
 )
 
@@ -86,6 +87,8 @@ func Fetch(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 		return fetchStaticOnly(ctx, rawURL, cfg)
 	case ModeBrowser:
 		return fetchBrowserOnly(ctx, rawURL, cfg)
+	case ModeRaw:
+		return fetchRawOnly(ctx, rawURL, cfg)
 	default:
 		return Result{}, fmt.Errorf("%w: %s", ErrUnsupportedMode, cfg.Mode)
 	}
@@ -102,7 +105,10 @@ func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 
 	// Honor explicit markdown responses from the server, even if the payload is MDX/JSX-heavy.
 	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
-		return Result{Markdown: normalizeMarkdown(resp.Body), Source: "http-markdown", FinalURL: resp.FinalURL}, nil
+		md := normalizeMarkdown(resp.Body)
+		if md != "" {
+			return Result{Markdown: md, Source: "http-markdown", FinalURL: resp.FinalURL}, nil
+		}
 	}
 
 	md, qualityOK, err := staticHTMLToMarkdown(resp.Body, resp.FinalURL, cfg.MinQualityText)
@@ -120,7 +126,11 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 	}
 
 	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
-		return Result{Markdown: normalizeMarkdown(resp.Body), Source: "http-markdown", FinalURL: resp.FinalURL}, nil
+		md := normalizeMarkdown(resp.Body)
+		if md != "" {
+			return Result{Markdown: md, Source: "http-markdown", FinalURL: resp.FinalURL}, nil
+		}
+		return Result{}, ErrNoContent
 	}
 
 	md, _, err := staticHTMLToMarkdown(resp.Body, resp.FinalURL, cfg.MinQualityText)
@@ -143,6 +153,23 @@ func fetchBrowserOnly(ctx context.Context, rawURL string, cfg Config) (Result, e
 		return Result{}, ErrNoContent
 	}
 	return Result{Markdown: md, Source: "browser", FinalURL: finalURL}, nil
+}
+
+func fetchRawOnly(ctx context.Context, rawURL string, cfg Config) (Result, error) {
+	// Raw mode is a single pass that still prefers markdown from the server.
+	// It returns that HTTP response body as-is without any extraction/conversion fallback.
+	resp, err := fetchHTTP(ctx, rawURL, cfg, true)
+	if err != nil {
+		return Result{}, err
+	}
+	if len(resp.Body) == 0 {
+		return Result{}, ErrNoContent
+	}
+	return Result{
+		Markdown: string(resp.Body),
+		Source:   "http-raw",
+		FinalURL: resp.FinalURL,
+	}, nil
 }
 
 func fetchHTTP(ctx context.Context, rawURL string, cfg Config, preferMarkdown bool) (responseData, error) {
