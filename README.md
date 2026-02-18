@@ -15,11 +15,12 @@ Web fetch results are often raw HTML/JS/CSS, which is noisy for LLMs. This tool 
 - `auto` (default):
   - Request with `Accept: text/markdown`
   - If response is `text/markdown` or already looks like Markdown, return it
-  - Else do static HTML extraction + convert to Markdown
-  - If static result quality is too low, fallback to headless browser render and convert
+  - Else do static HTML extraction + convert to Markdown (inject `title`/`description` front matter by default)
+  - If static result quality is too low, fallback to headless browser render and convert (also inject front matter by default)
 - `static`: never uses browser fallback
 - `browser`: always uses headless browser
 - `raw`: send `Accept: text/markdown`, then print that single HTTP response body as-is (no fallback/conversion)
+- `--meta` (default `true`): control whether non-`raw` outputs include front matter (`title`/`description`). For `auto`/`static` direct markdown responses, it may do one extra HTML request to collect metadata.
 
 ## Install (with Go)
 
@@ -70,6 +71,7 @@ Common flags:
 ```bash
 agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+agent-fetch --mode static --meta=false https://example.com
 agent-fetch --mode raw https://example.com
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```

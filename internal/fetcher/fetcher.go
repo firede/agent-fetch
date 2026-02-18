@@ -19,6 +19,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	readability "github.com/go-shiori/go-readability"
+	"golang.org/x/net/html"
 )
 
 const (
@@ -47,6 +48,7 @@ type Config struct {
 	Headers        http.Header
 	MaxBodyBytes   int64
 	MinQualityText int
+	IncludeMeta    bool
 }
 
 type Result struct {
@@ -72,6 +74,7 @@ func DefaultConfig() Config {
 		Headers:        make(http.Header),
 		MaxBodyBytes:   8 << 20,
 		MinQualityText: 220,
+		IncludeMeta:    true,
 	}
 }
 
@@ -107,12 +110,18 @@ func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
 		md := normalizeMarkdown(resp.Body)
 		if md != "" {
+			if cfg.IncludeMeta {
+				md = withMetaForMarkdownResponse(ctx, rawURL, cfg, md)
+			}
 			return Result{Markdown: md, Source: "http-markdown", FinalURL: resp.FinalURL}, nil
 		}
 	}
 
 	md, qualityOK, err := staticHTMLToMarkdown(resp.Body, resp.FinalURL, cfg.MinQualityText)
 	if err == nil && qualityOK {
+		if cfg.IncludeMeta {
+			md = prependMetaFrontMatter(md, extractMetaFromHTML(resp.Body))
+		}
 		return Result{Markdown: md, Source: "http-static", FinalURL: resp.FinalURL}, nil
 	}
 
@@ -128,6 +137,9 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 	if isMarkdownContentType(resp.ContentType) || isLikelyMarkdown(resp.Body, resp.ContentType) {
 		md := normalizeMarkdown(resp.Body)
 		if md != "" {
+			if cfg.IncludeMeta {
+				md = withMetaForMarkdownResponse(ctx, rawURL, cfg, md)
+			}
 			return Result{Markdown: md, Source: "http-markdown", FinalURL: resp.FinalURL}, nil
 		}
 		return Result{}, ErrNoContent
@@ -139,6 +151,9 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 	}
 	if strings.TrimSpace(md) == "" {
 		return Result{}, ErrNoContent
+	}
+	if cfg.IncludeMeta {
+		md = prependMetaFrontMatter(md, extractMetaFromHTML(resp.Body))
 	}
 
 	return Result{Markdown: md, Source: "http-static", FinalURL: resp.FinalURL}, nil
@@ -173,12 +188,20 @@ func fetchRawOnly(ctx context.Context, rawURL string, cfg Config) (Result, error
 }
 
 func fetchHTTP(ctx context.Context, rawURL string, cfg Config, preferMarkdown bool) (responseData, error) {
+	accept := ""
+	if preferMarkdown {
+		accept = "text/markdown, text/plain;q=0.9, text/html;q=0.8, */*;q=0.1"
+	}
+	return fetchHTTPWithAccept(ctx, rawURL, cfg, accept)
+}
+
+func fetchHTTPWithAccept(ctx context.Context, rawURL string, cfg Config, accept string) (responseData, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return responseData{}, fmt.Errorf("create request: %w", err)
 	}
-	if preferMarkdown {
-		req.Header.Set("Accept", "text/markdown, text/plain;q=0.9, text/html;q=0.8, */*;q=0.1")
+	if accept != "" {
+		req.Header.Set("Accept", accept)
 	}
 	if cfg.UserAgent != "" {
 		req.Header.Set("User-Agent", cfg.UserAgent)
@@ -219,6 +242,18 @@ func fetchHTTP(ctx context.Context, rawURL string, cfg Config, preferMarkdown bo
 		FinalURL:    finalURL,
 		StatusCode:  resp.StatusCode,
 	}, nil
+}
+
+func withMetaForMarkdownResponse(ctx context.Context, rawURL string, cfg Config, md string) string {
+	if strings.TrimSpace(md) == "" || hasLeadingYAMLFrontMatter(md) {
+		return md
+	}
+
+	resp, err := fetchHTTPWithAccept(ctx, rawURL, cfg, "text/html, application/xhtml+xml;q=0.9, */*;q=0.1")
+	if err != nil {
+		return md
+	}
+	return prependMetaFrontMatter(md, extractMetaFromHTML(resp.Body))
 }
 
 func staticHTMLToMarkdown(body []byte, pageURL string, minQualityText int) (string, bool, error) {
@@ -308,6 +343,9 @@ func browserHTMLToMarkdown(ctx context.Context, rawURL string, cfg Config) (stri
 	md, _, err := staticHTMLToMarkdown([]byte(htmlDoc), finalURL, cfg.MinQualityText)
 	if err != nil {
 		return "", "", err
+	}
+	if cfg.IncludeMeta {
+		md = prependMetaFrontMatter(md, extractMetaFromHTML([]byte(htmlDoc)))
 	}
 	return md, finalURL, nil
 }
@@ -468,6 +506,197 @@ func markdownQuality(md string, minQualityText int) bool {
 }
 
 var linkOnlyRe = regexp.MustCompile(`^\[.+\]\(.+\)$`)
+
+type pageMeta struct {
+	Title       string
+	Description string
+}
+
+func extractMetaFromHTML(body []byte) pageMeta {
+	if len(body) == 0 {
+		return pageMeta{}
+	}
+
+	doc, err := html.Parse(bytes.NewReader(body))
+	if err != nil {
+		return pageMeta{}
+	}
+
+	head := findFirstElement(doc, "head")
+	if head == nil {
+		head = doc
+	}
+
+	var (
+		titleTag      string
+		ogTitle       string
+		description   string
+		ogDescription string
+	)
+
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n == nil {
+			return
+		}
+		if n.Type == html.ElementNode {
+			switch strings.ToLower(n.Data) {
+			case "title":
+				if titleTag == "" {
+					titleTag = normalizeMetaValue(nodeText(n))
+				}
+			case "meta":
+				content := normalizeMetaValue(htmlAttr(n, "content"))
+				if content != "" {
+					name := strings.ToLower(strings.TrimSpace(htmlAttr(n, "name")))
+					prop := strings.ToLower(strings.TrimSpace(htmlAttr(n, "property")))
+					switch {
+					case name == "description" && description == "":
+						description = content
+					case prop == "og:description" && ogDescription == "":
+						ogDescription = content
+					case prop == "og:title" && ogTitle == "":
+						ogTitle = content
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(head)
+
+	meta := pageMeta{}
+	if titleTag != "" {
+		meta.Title = titleTag
+	} else {
+		meta.Title = ogTitle
+	}
+	if description != "" {
+		meta.Description = description
+	} else {
+		meta.Description = ogDescription
+	}
+	return meta
+}
+
+func prependMetaFrontMatter(md string, meta pageMeta) string {
+	if strings.TrimSpace(md) == "" {
+		return md
+	}
+	if hasLeadingYAMLFrontMatter(md) {
+		return md
+	}
+
+	meta.Title = normalizeMetaValue(meta.Title)
+	meta.Description = normalizeMetaValue(meta.Description)
+	if meta.Title == "" && meta.Description == "" {
+		return md
+	}
+
+	var b strings.Builder
+	b.WriteString("---\n")
+	if meta.Title != "" {
+		b.WriteString("title: ")
+		b.WriteString(yamlQuote(meta.Title))
+		b.WriteByte('\n')
+	}
+	if meta.Description != "" {
+		b.WriteString("description: ")
+		b.WriteString(yamlQuote(meta.Description))
+		b.WriteByte('\n')
+	}
+	b.WriteString("---\n\n")
+	b.WriteString(md)
+	return b.String()
+}
+
+func hasLeadingYAMLFrontMatter(md string) bool {
+	s := strings.TrimPrefix(md, "\ufeff")
+	switch {
+	case strings.HasPrefix(s, "---\n"):
+		s = s[len("---\n"):]
+	case strings.HasPrefix(s, "---\r\n"):
+		s = s[len("---\r\n"):]
+	default:
+		return false
+	}
+
+	for len(s) > 0 {
+		var line string
+		if idx := strings.IndexByte(s, '\n'); idx >= 0 {
+			line = s[:idx]
+			s = s[idx+1:]
+		} else {
+			line = s
+			s = ""
+		}
+		line = strings.TrimSuffix(line, "\r")
+		if strings.TrimSpace(line) == "---" {
+			return true
+		}
+	}
+	return false
+}
+
+func yamlQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+func normalizeMetaValue(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
+func findFirstElement(root *html.Node, tag string) *html.Node {
+	target := strings.ToLower(tag)
+	var found *html.Node
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n == nil || found != nil {
+			return
+		}
+		if n.Type == html.ElementNode && strings.ToLower(n.Data) == target {
+			found = n
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return found
+}
+
+func htmlAttr(n *html.Node, key string) string {
+	for _, a := range n.Attr {
+		if strings.EqualFold(a.Key, key) {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+func nodeText(n *html.Node) string {
+	if n == nil {
+		return ""
+	}
+	var b strings.Builder
+	var walk func(*html.Node)
+	walk = func(cur *html.Node) {
+		if cur == nil {
+			return
+		}
+		if cur.Type == html.TextNode {
+			b.WriteString(cur.Data)
+		}
+		for c := cur.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(n)
+	return b.String()
+}
 
 func normalizeMarkdown(body []byte) string {
 	md := strings.TrimSpace(string(body))

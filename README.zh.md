@@ -15,11 +15,12 @@
 - `auto`（默认）：
   - 先用 `Accept: text/markdown` 请求
   - 若返回为 `text/markdown` 或内容已判定为 Markdown，直接输出
-  - 否则执行静态 HTML 正文抽取并转换为 Markdown
-  - 若静态结果质量较低，再回退到无头浏览器渲染后转换
+  - 否则执行静态 HTML 正文抽取并转换为 Markdown（默认注入 `title`/`description` front matter）
+  - 若静态结果质量较低，再回退到无头浏览器渲染后转换（默认也注入 front matter）
 - `static`：只走静态路径，不启用浏览器回退
 - `browser`：始终使用无头浏览器
 - `raw`：带 `Accept: text/markdown` 发起一次 HTTP 请求，并将该响应体原样输出（不做回退/转换）
+- `--meta`（默认 `true`）：控制非 `raw` 输出是否附带 front matter（`title`/`description`）。对于 `auto`/`static` 的直返 markdown，可能会额外发起一次 HTML 请求用于补齐元信息。
 
 ## 安装（使用 Go）
 
@@ -70,6 +71,7 @@ agent-fetch <url>
 ```bash
 agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+agent-fetch --mode static --meta=false https://example.com
 agent-fetch --mode raw https://example.com
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```

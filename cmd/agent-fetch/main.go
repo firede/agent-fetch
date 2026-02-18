@@ -30,6 +30,7 @@ func main() {
 		UsageText: "agent-fetch [options] <url>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "mode", Value: defaultCfg.Mode, Usage: "fetch mode: auto|static|browser|raw"},
+			&cli.BoolFlag{Name: "meta", Value: defaultCfg.IncludeMeta, Usage: "include title/description front matter for static/browser outputs"},
 			&cli.DurationFlag{Name: "timeout", Value: defaultCfg.Timeout, Usage: "HTTP timeout"},
 			&cli.DurationFlag{Name: "browser-timeout", Value: defaultCfg.BrowserTimeout, Usage: "browser mode timeout"},
 			&cli.DurationFlag{Name: "network-idle", Value: defaultCfg.NetworkIdle, Usage: "required network idle time in browser mode"},
@@ -49,6 +50,7 @@ func main() {
 
 			cfg := fetcher.DefaultConfig()
 			cfg.Mode = c.String("mode")
+			cfg.IncludeMeta = c.Bool("meta")
 			cfg.Timeout = c.Duration("timeout")
 			cfg.BrowserTimeout = c.Duration("browser-timeout")
 			cfg.NetworkIdle = c.Duration("network-idle")
