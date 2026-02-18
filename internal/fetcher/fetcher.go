@@ -32,6 +32,8 @@ var (
 	ErrUnsupportedMode = errors.New("unsupported mode")
 	ErrNoContent       = errors.New("no content could be extracted")
 	ErrHTTPStatus      = errors.New("unexpected HTTP status code")
+
+	browserHTMLToMarkdownFn = browserHTMLToMarkdown
 )
 
 type Config struct {
@@ -92,6 +94,9 @@ func Fetch(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 	resp, err := fetchHTTP(ctx, rawURL, cfg, true)
 	if err != nil {
+		if errors.Is(err, ErrHTTPStatus) {
+			return fetchBrowserOnly(ctx, rawURL, cfg)
+		}
 		return Result{}, err
 	}
 
@@ -104,14 +109,7 @@ func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 		return Result{Markdown: md, Source: "http-static", FinalURL: resp.FinalURL}, nil
 	}
 
-	browMD, finalURL, err := browserHTMLToMarkdown(ctx, rawURL, cfg)
-	if err != nil {
-		return Result{}, err
-	}
-	if strings.TrimSpace(browMD) == "" {
-		return Result{}, ErrNoContent
-	}
-	return Result{Markdown: browMD, Source: "browser", FinalURL: finalURL}, nil
+	return fetchBrowserOnly(ctx, rawURL, cfg)
 }
 
 func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, error) {
@@ -136,7 +134,7 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 }
 
 func fetchBrowserOnly(ctx context.Context, rawURL string, cfg Config) (Result, error) {
-	md, finalURL, err := browserHTMLToMarkdown(ctx, rawURL, cfg)
+	md, finalURL, err := browserHTMLToMarkdownFn(ctx, rawURL, cfg)
 	if err != nil {
 		return Result{}, err
 	}

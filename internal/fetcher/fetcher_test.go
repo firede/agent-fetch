@@ -128,6 +128,41 @@ func TestFetchReturnsErrorOnHTTPStatus(t *testing.T) {
 	}
 }
 
+func TestFetchAutoFallsBackToBrowserOnHTTPStatus(t *testing.T) {
+	originalBrowserFn := browserHTMLToMarkdownFn
+	browserHTMLToMarkdownFn = func(_ context.Context, _ string, _ Config) (string, string, error) {
+		return "# Browser Rendered\n", "https://browser.example/final", nil
+	}
+	defer func() {
+		browserHTMLToMarkdownFn = originalBrowserFn
+	}()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, "<html><body><h1>Forbidden</h1></body></html>")
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeAuto
+	cfg.Timeout = 5 * time.Second
+
+	res, err := Fetch(context.Background(), ts.URL, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Source != "browser" {
+		t.Fatalf("expected source browser, got %q", res.Source)
+	}
+	if res.FinalURL != "https://browser.example/final" {
+		t.Fatalf("unexpected final URL: %q", res.FinalURL)
+	}
+	if !strings.Contains(res.Markdown, "Browser Rendered") {
+		t.Fatalf("unexpected markdown output: %q", res.Markdown)
+	}
+}
+
 func TestToCDPHeadersCookieFormatting(t *testing.T) {
 	h := make(http.Header)
 	h.Add("Cookie", "a=1")
