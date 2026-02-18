@@ -20,6 +20,28 @@ Web fetch results are often raw HTML/JS/CSS, which is noisy for LLMs. This tool 
 - `static`: never uses browser fallback
 - `browser`: always uses headless browser
 
+## Install (from Releases)
+
+1. Download the archive for your platform from the [GitHub Releases](https://github.com/firede/agent-fetch/releases) page.
+2. Extract it and make the binary executable:
+
+```bash
+chmod +x ./agent-fetch
+```
+
+### macOS note
+
+Current release binaries are not notarized by Apple (no Apple Developer notarization yet), so Gatekeeper may show:
+
+`“agent-fetch” cannot be opened because Apple cannot check it for malicious software.`
+
+For local validation, remove the quarantine attribute and run:
+
+```bash
+xattr -dr com.apple.quarantine ./agent-fetch
+./agent-fetch https://example.com
+```
+
 ## Usage
 
 ```bash

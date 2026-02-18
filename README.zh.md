@@ -20,6 +20,28 @@
 - `static`：只走静态路径，不启用浏览器回退
 - `browser`：始终使用无头浏览器
 
+## 安装（从 Releases 下载）
+
+1. 在 [GitHub Releases](https://github.com/firede/agent-fetch/releases) 页面下载对应平台的压缩包。
+2. 解压后为二进制添加执行权限：
+
+```bash
+chmod +x ./agent-fetch
+```
+
+### macOS 提示
+
+当前发布的二进制尚未进行 Apple 公证（暂未接入 Apple Developer 公证流程），因此 Gatekeeper 可能提示：
+
+`“agent-fetch”未打开。Apple 无法验证“agent-fetch”是否包含可能危害 Mac 安全或泄漏隐私的恶意软件。`
+
+用于本地验证时，可先移除 quarantine 属性再运行：
+
+```bash
+xattr -dr com.apple.quarantine ./agent-fetch
+./agent-fetch https://example.com
+```
+
 ## 使用方式
 
 ```bash
