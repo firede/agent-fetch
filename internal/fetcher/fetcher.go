@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	ModeAuto    = "auto"
-	ModeStatic  = "static"
-	ModeBrowser = "browser"
+	ModeAuto              = "auto"
+	ModeStatic            = "static"
+	ModeBrowser           = "browser"
+	maxMarkdownSampleSize = 12000
 )
 
 var (
@@ -287,8 +288,8 @@ func isLikelyMarkdown(body []byte, contentType string) bool {
 	}
 
 	sample := trimmed
-	if len(sample) > 12000 {
-		sample = sample[:12000]
+	if len(sample) > maxMarkdownSampleSize {
+		sample = sample[:maxMarkdownSampleSize]
 	}
 	lower := strings.ToLower(sample)
 
