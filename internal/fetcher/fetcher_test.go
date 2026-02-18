@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,12 +14,16 @@ import (
 func TestIsLikelyMarkdown(t *testing.T) {
 	md := []byte("# Title\n\n- item\n\nThis is markdown.\n")
 	html := []byte("<!doctype html><html><body><h1>Title</h1></body></html>")
+	jsonPayload := []byte(`{"items":[{"id":1,"name":"alpha"},{"id":2,"name":"beta"},{"id":3,"name":"gamma"}],"meta":{"total":203,"note":"this payload is intentionally long enough to trigger old fallback behavior"}}`)
 
 	if !isLikelyMarkdown(md, "text/plain") {
 		t.Fatal("expected markdown sample to be detected as markdown")
 	}
 	if isLikelyMarkdown(html, "text/html") {
 		t.Fatal("expected HTML sample to not be treated as markdown")
+	}
+	if isLikelyMarkdown(jsonPayload, "application/json") {
+		t.Fatal("expected JSON sample to not be treated as markdown")
 	}
 }
 
@@ -102,5 +107,74 @@ func TestFetchStaticConvertsHTML(t *testing.T) {
 	}
 	if !strings.Contains(res.Markdown, "Static Page") {
 		t.Fatalf("unexpected markdown output: %q", res.Markdown)
+	}
+}
+
+func TestFetchReturnsErrorOnHTTPStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, "<html><body><h1>Not Found</h1></body></html>")
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeStatic
+	cfg.Timeout = 5 * time.Second
+
+	_, err := Fetch(context.Background(), ts.URL, cfg)
+	if !errors.Is(err, ErrHTTPStatus) {
+		t.Fatalf("expected ErrHTTPStatus, got %v", err)
+	}
+}
+
+func TestFetchAutoFallsBackToBrowserOnHTTPStatus(t *testing.T) {
+	originalBrowserFn := browserHTMLToMarkdownFn
+	browserHTMLToMarkdownFn = func(_ context.Context, _ string, _ Config) (string, string, error) {
+		return "# Browser Rendered\n", "https://browser.example/final", nil
+	}
+	defer func() {
+		browserHTMLToMarkdownFn = originalBrowserFn
+	}()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, "<html><body><h1>Forbidden</h1></body></html>")
+	}))
+	defer ts.Close()
+
+	cfg := DefaultConfig()
+	cfg.Mode = ModeAuto
+	cfg.Timeout = 5 * time.Second
+
+	res, err := Fetch(context.Background(), ts.URL, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Source != "browser" {
+		t.Fatalf("expected source browser, got %q", res.Source)
+	}
+	if res.FinalURL != "https://browser.example/final" {
+		t.Fatalf("unexpected final URL: %q", res.FinalURL)
+	}
+	if !strings.Contains(res.Markdown, "Browser Rendered") {
+		t.Fatalf("unexpected markdown output: %q", res.Markdown)
+	}
+}
+
+func TestToCDPHeadersCookieFormatting(t *testing.T) {
+	h := make(http.Header)
+	h.Add("Cookie", "a=1")
+	h.Add("Cookie", "b=2")
+	h.Add("X-Test", "one")
+	h.Add("X-Test", "two")
+
+	got := toCDPHeaders(h)
+	if got["Cookie"] != "a=1; b=2" {
+		t.Fatalf("expected cookie header to use '; ' separator, got %v", got["Cookie"])
+	}
+	if got["X-Test"] != "one, two" {
+		t.Fatalf("expected generic headers to use ', ' separator, got %v", got["X-Test"])
 	}
 }

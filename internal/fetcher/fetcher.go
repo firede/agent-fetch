@@ -3,6 +3,7 @@ package fetcher
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,14 +22,18 @@ import (
 )
 
 const (
-	ModeAuto    = "auto"
-	ModeStatic  = "static"
-	ModeBrowser = "browser"
+	ModeAuto              = "auto"
+	ModeStatic            = "static"
+	ModeBrowser           = "browser"
+	maxMarkdownSampleSize = 12000
 )
 
 var (
 	ErrUnsupportedMode = errors.New("unsupported mode")
 	ErrNoContent       = errors.New("no content could be extracted")
+	ErrHTTPStatus      = errors.New("unexpected HTTP status code")
+
+	browserHTMLToMarkdownFn = browserHTMLToMarkdown
 )
 
 type Config struct {
@@ -89,6 +94,9 @@ func Fetch(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 	resp, err := fetchHTTP(ctx, rawURL, cfg, true)
 	if err != nil {
+		if errors.Is(err, ErrHTTPStatus) {
+			return fetchBrowserOnly(ctx, rawURL, cfg)
+		}
 		return Result{}, err
 	}
 
@@ -101,14 +109,7 @@ func fetchAuto(ctx context.Context, rawURL string, cfg Config) (Result, error) {
 		return Result{Markdown: md, Source: "http-static", FinalURL: resp.FinalURL}, nil
 	}
 
-	browMD, finalURL, err := browserHTMLToMarkdown(ctx, rawURL, cfg)
-	if err != nil {
-		return Result{}, err
-	}
-	if strings.TrimSpace(browMD) == "" {
-		return Result{}, ErrNoContent
-	}
-	return Result{Markdown: browMD, Source: "browser", FinalURL: finalURL}, nil
+	return fetchBrowserOnly(ctx, rawURL, cfg)
 }
 
 func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, error) {
@@ -133,7 +134,7 @@ func fetchStaticOnly(ctx context.Context, rawURL string, cfg Config) (Result, er
 }
 
 func fetchBrowserOnly(ctx context.Context, rawURL string, cfg Config) (Result, error) {
-	md, finalURL, err := browserHTMLToMarkdown(ctx, rawURL, cfg)
+	md, finalURL, err := browserHTMLToMarkdownFn(ctx, rawURL, cfg)
 	if err != nil {
 		return Result{}, err
 	}
@@ -179,6 +180,9 @@ func fetchHTTP(ctx context.Context, rawURL string, cfg Config, preferMarkdown bo
 	finalURL := rawURL
 	if resp.Request != nil && resp.Request.URL != nil {
 		finalURL = resp.Request.URL.String()
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return responseData{}, fmt.Errorf("%w: %d %s (%s)", ErrHTTPStatus, resp.StatusCode, http.StatusText(resp.StatusCode), finalURL)
 	}
 
 	return responseData{
@@ -287,8 +291,12 @@ func isLikelyMarkdown(body []byte, contentType string) bool {
 	}
 
 	sample := trimmed
-	if len(sample) > 12000 {
-		sample = sample[:12000]
+	if len(sample) > maxMarkdownSampleSize {
+		sample = sample[:maxMarkdownSampleSize]
+	}
+	lcType := strings.ToLower(contentType)
+	if looksLikeJSONPayload(sample, lcType) {
+		return false
 	}
 	lower := strings.ToLower(sample)
 
@@ -309,7 +317,6 @@ func isLikelyMarkdown(body []byte, contentType string) bool {
 		return true
 	}
 
-	lcType := strings.ToLower(contentType)
 	if strings.Contains(lcType, "text/markdown") && htmlTagCount == 0 {
 		return true
 	}
@@ -322,6 +329,25 @@ func isLikelyMarkdown(body []byte, contentType string) bool {
 	}
 
 	return false
+}
+
+func looksLikeJSONPayload(sample, contentType string) bool {
+	if strings.Contains(contentType, "json") {
+		return true
+	}
+
+	trim := strings.TrimSpace(sample)
+	if trim == "" {
+		return false
+	}
+	if trim[0] != '{' && trim[0] != '[' {
+		return false
+	}
+	if json.Valid([]byte(trim)) {
+		return true
+	}
+	// Treat truncated JSON-like payloads as structured data instead of markdown.
+	return strings.Contains(trim, "\":")
 }
 
 var htmlTagRe = regexp.MustCompile(`</?[a-z][a-z0-9]*(\s+[^>]*)?>`)
@@ -442,7 +468,12 @@ func toCDPHeaders(h http.Header) network.Headers {
 
 	res := make(network.Headers, len(keys))
 	for _, k := range keys {
-		res[k] = strings.Join(h.Values(k), ", ")
+		vals := h.Values(k)
+		if strings.EqualFold(k, "Cookie") {
+			res[k] = strings.Join(vals, "; ")
+			continue
+		}
+		res[k] = strings.Join(vals, ", ")
 	}
 	return res
 }
