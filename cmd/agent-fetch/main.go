@@ -33,7 +33,7 @@ func main() {
 	cmd := &cli.Command{
 		Name:      "agent-fetch",
 		Usage:     "Fetch web content and return markdown-friendly output",
-		UsageText: "agent-fetch [options] <url>",
+		UsageText: "agent-fetch [options] <url> [url ...]",
 		Version:   versionString(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "mode", Value: defaultCfg.Mode, Usage: "fetch mode: auto|static|browser|raw"},
@@ -44,13 +44,14 @@ func main() {
 			&cli.StringFlag{Name: "wait-selector", Usage: "CSS selector to wait for in browser mode"},
 			&cli.StringFlag{Name: "user-agent", Value: defaultCfg.UserAgent, Usage: "User-Agent header"},
 			&cli.Int64Flag{Name: "max-body-bytes", Value: defaultCfg.MaxBodyBytes, Usage: "max response bytes to read"},
+			&cli.IntFlag{Name: "concurrency", Value: 4, Usage: "max concurrent URL fetches when multiple URLs are provided"},
 			&cli.StringSliceFlag{
 				Name:  "header",
 				Usage: "custom request header, repeatable. Example: --header 'Authorization: Bearer token'",
 			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			if c.Args().Len() != 1 {
+			if c.Args().Len() < 1 {
 				_ = cli.ShowRootCommandHelp(c)
 				return &exitStatusError{code: 2}
 			}
@@ -71,17 +72,33 @@ func main() {
 			}
 			cfg.Headers = parsedHeaders
 
-			url := c.Args().First()
-			reqCtx, cancel := context.WithTimeout(ctx, maxDuration(cfg.Timeout, cfg.BrowserTimeout)+5*time.Second)
-			defer cancel()
-
-			res, err := fetcher.Fetch(reqCtx, url, cfg)
-			if err != nil {
-				return &exitStatusError{code: 1, msg: fmt.Sprintf("fetch failed: %v", err)}
+			urls := c.Args().Slice()
+			concurrency := c.Int("concurrency")
+			if concurrency < 1 {
+				return &exitStatusError{code: 2, msg: "invalid concurrency: must be >= 1"}
 			}
 
-			if _, err := os.Stdout.WriteString(res.Markdown); err != nil {
+			if len(urls) == 1 {
+				reqCtx, cancel := context.WithTimeout(ctx, maxDuration(cfg.Timeout, cfg.BrowserTimeout)+5*time.Second)
+				defer cancel()
+
+				res, err := fetcher.Fetch(reqCtx, urls[0], cfg)
+				if err != nil {
+					return &exitStatusError{code: 1, msg: fmt.Sprintf("fetch failed: %v", err)}
+				}
+
+				if _, err := os.Stdout.WriteString(res.Markdown); err != nil {
+					return &exitStatusError{code: 1, msg: fmt.Sprintf("write failed: %v", err)}
+				}
+				return nil
+			}
+
+			results := fetchBatch(ctx, urls, cfg, concurrency, fetcher.Fetch)
+			if err := writeBatchMarkdown(os.Stdout, results); err != nil {
 				return &exitStatusError{code: 1, msg: fmt.Sprintf("write failed: %v", err)}
+			}
+			if failed := failedCount(results); failed > 0 {
+				return &exitStatusError{code: 1}
 			}
 			return nil
 		},
