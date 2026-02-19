@@ -12,6 +12,11 @@ builds:
     binary: agent-fetch
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Tag }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
     goos:
       - darwin
       - linux

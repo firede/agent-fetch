@@ -21,3 +21,11 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+      - name: Verify version flag
+        run: |
+          mkdir -p dist
+          go build -ldflags "-X main.version=v0.0.0 -X main.commit=deadbeef -X main.date=2026-02-19T00:00:00Z" -o ./dist/agent-fetch ./cmd/agent-fetch
+          ./dist/agent-fetch --version | tee /tmp/agent-fetch-version.txt
+          grep -q "v0.0.0" /tmp/agent-fetch-version.txt
+          grep -q "deadbeef" /tmp/agent-fetch-version.txt
