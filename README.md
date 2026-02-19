@@ -24,6 +24,14 @@ If you use tools like Codex or Claude Code, note that they may already include b
 - `raw`: send `Accept: text/markdown`, then print that single HTTP response body as-is (no fallback/conversion)
 - `--meta` (default `true`): control whether non-`raw` outputs include front matter (`title`/`description`). For `auto`/`static` direct markdown responses, it may do one extra HTML request to collect metadata.
 
+## Runtime dependency
+
+`browser` mode requires a Chrome/Chromium browser available on the host.
+
+`auto` mode may fall back to browser rendering, so it can also require Chrome/Chromium on some pages.
+
+Use `--mode static` or `--mode raw` to avoid browser dependency.
+
 ## Install (with Go)
 
 If Go is already installed locally:

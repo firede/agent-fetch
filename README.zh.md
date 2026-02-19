@@ -24,6 +24,14 @@
 - `raw`：带 `Accept: text/markdown` 发起一次 HTTP 请求，并将该响应体原样输出（不做回退/转换）
 - `--meta`（默认 `true`）：控制非 `raw` 输出是否附带 front matter（`title`/`description`）。对于 `auto`/`static` 的直返 markdown，可能会额外发起一次 HTML 请求用于补齐元信息。
 
+## 运行时依赖
+
+`browser` 模式要求宿主机可用 Chrome/Chromium 浏览器。
+
+`auto` 模式可能回退到浏览器渲染，因此在部分页面上也会依赖 Chrome/Chromium。
+
+如需避免浏览器依赖，请使用 `--mode static` 或 `--mode raw`。
+
 ## 安装（使用 Go）
 
 如果本地已经安装 Go，可直接执行：

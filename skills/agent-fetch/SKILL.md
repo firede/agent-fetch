@@ -43,6 +43,12 @@ agent-fetch --help
 
 ## Fetch workflow
 
+Browser runtime requirement:
+
+- `--mode browser` requires Chrome/Chromium available on the host.
+- `--mode auto` may fall back to browser rendering on some pages.
+- Use `--mode static` or `--mode raw` when browser runtime is unavailable.
+
 1. Start with `auto` mode for general pages.
 2. Use `browser` mode for JavaScript-heavy pages.
 3. Add `--wait-selector` in `browser` mode when content appears late.
