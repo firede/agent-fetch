@@ -34,7 +34,7 @@ func main() {
 		Name:      "agent-fetch",
 		Usage:     "Fetch web content and return markdown-friendly output",
 		UsageText: "agent-fetch [options] <url>",
-		Version:   fmt.Sprintf("%s (%s, %s)", version, commit, date),
+		Version:   versionString(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "mode", Value: defaultCfg.Mode, Usage: "fetch mode: auto|static|browser|raw"},
 			&cli.BoolFlag{Name: "meta", Value: defaultCfg.IncludeMeta, Usage: "include title/description front matter for static/browser outputs"},
