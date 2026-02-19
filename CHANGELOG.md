@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] - 2026-02-19
+
+### Added
+- Added concurrent multi-URL fetching with shared flags by accepting `agent-fetch [options] <url> [url ...]`.
+- Added `--concurrency` to control maximum parallel fetch tasks for multi-URL runs.
+- Added LLM-friendly batch output markers with per-task URL mapping and per-task error markers for failed tasks.
+- Added tests for batch output formatting and stable input-order output under concurrent execution.
+
+### Changed
+- Updated exit code behavior for batch mode: `0` when all tasks succeed, `1` when any task fails, and `2` for usage/argument errors.
+- Updated `--version` behavior to resolve version from Go build info when release ldflags are absent, improving `go install ...@vX.Y.Z` experience.
+- Updated README (EN/ZH) and skill docs to describe multi-URL behavior, batch output format, and concurrency controls.
+
 ## [0.2.1] - 2026-02-19
 
 ### Added
