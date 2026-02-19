@@ -23,6 +23,7 @@
 - `browser`：始终使用无头浏览器
 - `raw`：带 `Accept: text/markdown` 发起一次 HTTP 请求，并将该响应体原样输出（不做回退/转换）
 - `--meta`（默认 `true`）：控制非 `raw` 输出是否附带 front matter（`title`/`description`）。对于 `auto`/`static` 的直返 markdown，可能会额外发起一次 HTML 请求用于补齐元信息。
+- 支持一个或多个 URL 参数。传入多个 URL 时会并发请求（可用 `--concurrency` 调整），并按输入顺序输出结果。
 
 ## 运行时依赖
 
@@ -79,7 +80,7 @@ Skill 位置：[`skills/agent-fetch`](./skills/agent-fetch/SKILL.md)。
 ## 使用方式
 
 ```bash
-agent-fetch <url>
+agent-fetch <url> [url ...]
 ```
 
 常用参数示例：
@@ -89,10 +90,23 @@ agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
 agent-fetch --mode static --meta=false https://example.com
 agent-fetch --mode raw https://example.com
+agent-fetch --mode static --concurrency 4 https://example.com https://example.org
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```
 
-抓取成功内容输出到 `stdout`（`raw` 模式为单次 HTTP 响应体原样输出）；错误信息输出到 `stderr`。
+抓取成功内容输出到 `stdout`（`raw` 模式为单次 HTTP 响应体原样输出）。  
+多个 URL 时，输出包含任务标记，便于与输入 URL 对齐：
+
+```text
+<!-- count: 3, succeeded: 2, failed: 1 -->
+<!-- task[1]: https://example.com/hello -->
+...markdown...
+<!-- /task[1] -->
+<!-- task[2](failed): https://abc.com -->
+<!-- error[2]: ... -->
+```
+
+退出码：全部成功为 `0`，部分或全部失败为 `1`，参数/用法错误为 `2`。
 
 ## 构建
 

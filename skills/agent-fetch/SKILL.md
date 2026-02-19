@@ -55,7 +55,8 @@ Browser runtime requirement:
 4. Use `static` mode when browser execution is not desired.
 5. Use `raw` mode when the exact HTTP response body is needed.
 6. Add repeated `--header` flags for auth/session requirements.
-7. Tune `--timeout`, `--browser-timeout`, `--network-idle`, and `--max-body-bytes` for slow or large pages.
+7. Tune `--timeout`, `--browser-timeout`, `--network-idle`, `--max-body-bytes`, and `--concurrency` for slow or large batches.
+8. For multiple URLs, rely on task markers in output to map each result back to its input URL.
 
 ## Command patterns
 
@@ -63,6 +64,12 @@ Default:
 
 ```bash
 agent-fetch https://example.com
+```
+
+Multiple URLs with shared flags:
+
+```bash
+agent-fetch --mode static --concurrency 4 https://example.com https://example.org
 ```
 
 Static-only:
@@ -92,5 +99,15 @@ agent-fetch --header "Authorization: Bearer <token>" https://example.com
 ## Output contract
 
 - Read fetched content from `stdout`.
-- Read errors from `stderr`.
-- Treat non-zero exit status as fetch failure.
+- For multiple URLs, parse output sections in this shape:
+
+```text
+<!-- count: N, succeeded: X, failed: Y -->
+<!-- task[1]: <input-url> -->
+...markdown...
+<!-- /task[1] -->
+<!-- task[2](failed): <input-url> -->
+<!-- error[2]: <error text> -->
+```
+
+- Treat exit code `0` as all successful, `1` as partial/complete task failure, and `2` as argument/usage error.

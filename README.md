@@ -23,6 +23,7 @@ If you use tools like Codex or Claude Code, note that they may already include b
 - `browser`: always uses headless browser
 - `raw`: send `Accept: text/markdown`, then print that single HTTP response body as-is (no fallback/conversion)
 - `--meta` (default `true`): control whether non-`raw` outputs include front matter (`title`/`description`). For `auto`/`static` direct markdown responses, it may do one extra HTML request to collect metadata.
+- One or more URL arguments are supported. For multiple URLs, requests run concurrently (configurable via `--concurrency`) and output is emitted in input order.
 
 ## Runtime dependency
 
@@ -79,7 +80,7 @@ It includes installation guidance and usage instructions for `agent-fetch`.
 ## Usage
 
 ```bash
-agent-fetch <url>
+agent-fetch <url> [url ...]
 ```
 
 Common flags:
@@ -89,10 +90,23 @@ agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
 agent-fetch --mode browser --wait-selector 'article' https://example.com
 agent-fetch --mode static --meta=false https://example.com
 agent-fetch --mode raw https://example.com
+agent-fetch --mode static --concurrency 4 https://example.com https://example.org
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```
 
-Fetched content is printed to `stdout` (`raw` mode prints the single HTTP response body unprocessed). Errors are printed to `stderr`.
+Fetched content is printed to `stdout` (`raw` mode prints the single HTTP response body unprocessed).  
+For multiple URLs, output uses task markers so each result maps back to its input URL:
+
+```text
+<!-- count: 3, succeeded: 2, failed: 1 -->
+<!-- task[1]: https://example.com/hello -->
+...markdown...
+<!-- /task[1] -->
+<!-- task[2](failed): https://abc.com -->
+<!-- error[2]: ... -->
+```
+
+Exit code is `0` when all tasks succeed, `1` when any task fails, and `2` for argument/usage errors.
 
 ## Build
 
