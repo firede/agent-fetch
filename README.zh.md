@@ -62,6 +62,12 @@ xattr -dr com.apple.quarantine ./agent-fetch
 ./agent-fetch https://example.com
 ```
 
+## Agent Skills
+
+Skill 位置：[`skills/agent-fetch`](./skills/agent-fetch/SKILL.md)。
+
+其中包含 `agent-fetch` 的安装指引和使用说明。
+
 ## 使用方式
 
 ```bash

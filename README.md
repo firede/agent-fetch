@@ -62,6 +62,12 @@ xattr -dr com.apple.quarantine ./agent-fetch
 ./agent-fetch https://example.com
 ```
 
+## Agent Skills
+
+Skill location: [`skills/agent-fetch`](./skills/agent-fetch/SKILL.md).
+
+It includes installation guidance and usage instructions for `agent-fetch`.
+
 ## Usage
 
 ```bash
