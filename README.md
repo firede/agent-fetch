@@ -133,7 +133,7 @@ agent-fetch --mode static --meta=false https://example.com
 agent-fetch --mode raw https://example.com
 
 # Authenticated request
-agent-fetch --header 'Authorization: Bearer <token>' https://example.com
+agent-fetch --header "Authorization: Bearer $TOKEN" https://example.com
 
 # Batch fetch with concurrency control
 agent-fetch --concurrency 4 https://example.com https://example.org

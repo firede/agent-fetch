@@ -1,6 +1,6 @@
 ---
 name: agent-fetch
-description: Fetch web pages as clean Markdown via the agent-fetch CLI. Handles cases that built-in web-fetch tools may not cover well: JavaScript-rendered pages (headless browser), authenticated endpoints (custom headers), batch fetching multiple URLs concurrently, and content output without AI summarization. Also works standalone when no built-in fetch tool is available.
+description: "Fetch web pages as clean Markdown via the agent-fetch CLI. Handles cases that built-in web-fetch tools may not cover well: JavaScript-rendered pages (headless browser), authenticated endpoints (custom headers), batch fetching multiple URLs concurrently, and content output without AI summarization. Also works standalone when no built-in fetch tool is available."
 ---
 
 # Agent Fetch
