@@ -31,17 +31,21 @@ func (e *exitStatusError) Error() string {
 func main() {
 	defaultCfg := fetcher.DefaultConfig()
 	cmd := &cli.Command{
-		Name:      "agent-fetch",
-		Usage:     "Fetch web content and return markdown-friendly output",
+		Name:  "agent-fetch",
+		Usage: "Fetch web pages as clean Markdown for AI-agent workflows",
+		Description: "Extracts readable content from web pages and converts it to Markdown.\n" +
+			"Uses a three-stage fallback pipeline: native Markdown -> static HTML\n" +
+			"extraction -> headless browser rendering. Supports custom headers,\n" +
+			"CSS selectors, and concurrent multi-URL batch fetching.",
 		UsageText: "agent-fetch [options] <url> [url ...]",
 		Version:   versionString(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "mode", Value: defaultCfg.Mode, Usage: "fetch mode: auto|static|browser|raw"},
-			&cli.BoolFlag{Name: "meta", Value: defaultCfg.IncludeMeta, Usage: "include title/description front matter for static/browser outputs"},
-			&cli.DurationFlag{Name: "timeout", Value: defaultCfg.Timeout, Usage: "HTTP timeout"},
-			&cli.DurationFlag{Name: "browser-timeout", Value: defaultCfg.BrowserTimeout, Usage: "browser mode timeout"},
-			&cli.DurationFlag{Name: "network-idle", Value: defaultCfg.NetworkIdle, Usage: "required network idle time in browser mode"},
-			&cli.StringFlag{Name: "wait-selector", Usage: "CSS selector to wait for in browser mode"},
+			&cli.BoolFlag{Name: "meta", Value: defaultCfg.IncludeMeta, Usage: "prepend title/description front matter (default true; use --meta=false to disable)"},
+			&cli.DurationFlag{Name: "timeout", Value: defaultCfg.Timeout, Usage: "HTTP request timeout for static/auto modes"},
+			&cli.DurationFlag{Name: "browser-timeout", Value: defaultCfg.BrowserTimeout, Usage: "page-load timeout for browser/auto modes"},
+			&cli.DurationFlag{Name: "network-idle", Value: defaultCfg.NetworkIdle, Usage: "wait this long after last network activity before capturing page content"},
+			&cli.StringFlag{Name: "wait-selector", Usage: "CSS selector to wait for before capturing, e.g. 'article', '#content'"},
 			&cli.StringFlag{Name: "user-agent", Value: defaultCfg.UserAgent, Usage: "User-Agent header"},
 			&cli.Int64Flag{Name: "max-body-bytes", Value: defaultCfg.MaxBodyBytes, Usage: "max response bytes to read"},
 			&cli.IntFlag{Name: "concurrency", Value: 4, Usage: "max concurrent URL fetches when multiple URLs are provided"},

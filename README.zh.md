@@ -1,55 +1,65 @@
 # agent-fetch
 
-用于 AI Agent 场景的 Go CLI：尽可能始终返回 Markdown 格式的网页内容。
+将网页转换为干净的 Markdown，专为 AI Agent 工作流设计。
 
 **中文** | [English](./README.md)
 
-## 背景
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Go](https://github.com/firede/agent-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/firede/agent-fetch/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/firede/agent-fetch)](https://github.com/firede/agent-fetch/releases)
 
-网页抓取结果通常是原始 HTML/JS/CSS，会给 LLM 带来大量噪音和 token 开销。这个工具封装了分级 fallback 流程，让 Agent 更稳定地拿到 Markdown 内容。
+## 亮点
 
-如果你使用 Codex、Claude Code 等工具，需要注意它们可能已内置 HTML 简化/抓取能力。是否仍需要 `agent-fetch`，应根据你的场景判断。
+- **Markdown 优先的输出管线** -- 可读性算法抽取正文 + HTML 转 Markdown，Agent 直接拿到干净文本，无需处理 HTML/JS/CSS 噪音
+- **无头浏览器回退** -- 自动渲染 JS 重度页面（SPA、动态仪表盘等），静态抽取无法满足时自动切换
+- **自定义请求头** -- 支持 `Authorization`、`Cookie` 等任意 Header，轻松访问需认证的接口
+- **多 URL 并发批量抓取** -- 一次传入多个 URL，并发请求，按输入顺序输出结构化结果
 
-## 行为说明
-
-`agent-fetch` 提供四种模式：
-
-- `auto`（默认）：
-  - 先用 `Accept: text/markdown` 请求
-  - 若返回为 `text/markdown` 或内容已判定为 Markdown，直接输出
-  - 否则执行静态 HTML 正文抽取并转换为 Markdown（默认注入 `title`/`description` front matter）
-  - 若静态结果质量较低，再回退到无头浏览器渲染后转换（默认也注入 front matter）
-- `static`：只走静态路径，不启用浏览器回退
-- `browser`：始终使用无头浏览器
-- `raw`：带 `Accept: text/markdown` 发起一次 HTTP 请求，并将该响应体原样输出（不做回退/转换）
-- `--meta`（默认 `true`）：控制非 `raw` 输出是否附带 front matter（`title`/`description`）。对于 `auto`/`static` 的直返 markdown，可能会额外发起一次 HTML 请求用于补齐元信息。
-- 支持一个或多个 URL 参数。传入多个 URL 时会并发请求（可用 `--concurrency` 调整），并按输入顺序输出结果。
-
-## 运行时依赖
-
-`browser` 模式要求宿主机可用 Chrome/Chromium 浏览器。
-
-`auto` 模式可能回退到浏览器渲染，因此在部分页面上也会依赖 Chrome/Chromium。
-
-如需避免浏览器依赖，请使用 `--mode static` 或 `--mode raw`。
-
-## 安装（使用 Go）
-
-如果本地已经安装 Go，可直接执行：
+## 快速开始
 
 ```bash
+# 安装
 go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
+
+# 抓取页面
+agent-fetch https://example.com
 ```
 
-安装指定版本：
+也可以从 [Releases](https://github.com/firede/agent-fetch/releases) 下载预编译二进制。
 
-```bash
-go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.2.0
+## 工作原理
+
+在默认的 `auto` 模式下，agent-fetch 使用三级 fallback 管线：
+
+```
+发起请求，Accept: text/markdown
+        |
+        v
+  响应是 Markdown？ --是--> 直接返回
+        | 否
+        v
+  静态 HTML 正文抽取
+  + Markdown 转换 --质量达标？--> 返回
+        | 否
+        v
+  无头浏览器渲染
+  + 抽取 + 转换 --> 返回
 ```
 
-请确保 `$(go env GOPATH)/bin`（通常是 `~/go/bin`）已加入 `PATH`。
+大多数页面无需启动浏览器即可处理，保持快速响应；遇到 JS 重度页面时自动切换到浏览器渲染。
 
-## 安装（从 Releases 下载）
+## 模式
+
+| 模式 | 行为 | 需要浏览器 |
+|------|------|-----------|
+| `auto`（默认） | 三级 fallback：原生 Markdown -> 静态抽取 -> 浏览器渲染 | 仅在静态质量不足时 |
+| `static` | 仅静态 HTML 抽取，不使用浏览器 | 否 |
+| `browser` | 始终使用无头 Chrome/Chromium | 是 |
+| `raw` | 发送 `Accept: text/markdown`，原样返回 HTTP 响应体 | 否 |
+
+## 安装
+
+### 从 Releases 下载
 
 1. 在 [GitHub Releases](https://github.com/firede/agent-fetch/releases) 页面下载对应平台的压缩包。
 2. 解压后为二进制添加执行权限：
@@ -58,44 +68,80 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.2.0
 chmod +x ./agent-fetch
 ```
 
-### macOS 提示
-
-当前发布的二进制尚未进行 Apple 公证（暂未接入 Apple Developer 公证流程），因此 Gatekeeper 可能提示：
-
-`“agent-fetch”未打开。Apple 无法验证“agent-fetch”是否包含可能危害 Mac 安全或泄漏隐私的恶意软件。`
-
-用于本地验证时，可先移除 quarantine 属性再运行：
+3. 将二进制移动到 `PATH` 中的目录，或直接运行：
 
 ```bash
-xattr -dr com.apple.quarantine ./agent-fetch
 ./agent-fetch https://example.com
 ```
 
-## Agent Skills
+#### macOS 提示
 
-Skill 位置：[`skills/agent-fetch`](./skills/agent-fetch/SKILL.md)。
+发布的二进制尚未进行 Apple 公证，Gatekeeper 可能阻止运行。移除 quarantine 属性即可：
 
-其中包含 `agent-fetch` 的安装指引和使用说明。
+```bash
+xattr -dr com.apple.quarantine ./agent-fetch
+```
+
+### 使用 Go 安装
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@latest
+```
+
+安装指定版本：
+
+```bash
+go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.3.0
+```
+
+请确保 `$(go env GOPATH)/bin`（通常是 `~/go/bin`）已加入 `PATH`。
 
 ## 使用方式
 
 ```bash
-agent-fetch <url> [url ...]
+agent-fetch [options] <url> [url ...]
 ```
 
-常用参数示例：
+### 参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--mode` | `auto` | 抓取模式：`auto` \| `static` \| `browser` \| `raw` |
+| `--meta` | `true` | 输出前附加 `title`/`description` front matter（`--meta=false` 可禁用） |
+| `--timeout` | `20s` | HTTP 请求超时（适用于 static/auto 模式） |
+| `--browser-timeout` | `30s` | 页面加载超时（适用于 browser/auto 模式） |
+| `--network-idle` | `1200ms` | 最后一次网络活动后等待多久再抓取页面内容 |
+| `--wait-selector` | | 等待指定 CSS 选择器出现后再抓取，如 `article` |
+| `--header` | | 自定义请求头，可重复使用。如 `--header 'Authorization: Bearer token'` |
+| `--user-agent` | `agent-fetch/0.1` | User-Agent 请求头 |
+| `--max-body-bytes` | `8388608` | 最大响应读取字节数 |
+| `--concurrency` | `4` | 多 URL 请求时的最大并发数 |
+
+### 示例
 
 ```bash
-agent-fetch --mode auto --timeout 20s --browser-timeout 30s https://example.com
+# 默认 auto 模式
+agent-fetch https://example.com
+
+# 强制浏览器渲染 JS 重度页面
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+
+# 静态抽取，不带 front matter
 agent-fetch --mode static --meta=false https://example.com
+
+# 获取原始 HTTP 响应体
 agent-fetch --mode raw https://example.com
-agent-fetch --mode static --concurrency 4 https://example.com https://example.org
+
+# 带认证请求
 agent-fetch --header 'Authorization: Bearer <token>' https://example.com
+
+# 批量抓取，控制并发
+agent-fetch --concurrency 4 https://example.com https://example.org
 ```
 
-抓取成功内容输出到 `stdout`（`raw` 模式为单次 HTTP 响应体原样输出）。  
-多个 URL 时，输出包含任务标记，便于与输入 URL 对齐：
+## 多 URL 批量抓取
+
+传入多个 URL 时，请求会并发执行（通过 `--concurrency` 控制），按输入顺序输出，使用任务标记区分各结果：
 
 ```text
 <!-- count: 3, succeeded: 2, failed: 1 -->
@@ -107,6 +153,41 @@ agent-fetch --header 'Authorization: Bearer <token>' https://example.com
 ```
 
 退出码：全部成功为 `0`，部分或全部失败为 `1`，参数/用法错误为 `2`。
+
+## Agent 集成
+
+项目附带一份 [SKILL.md](./skills/agent-fetch/SKILL.md)，可供支持 skill 文件的编程 Agent 使用。将 skill 目录指向 `skills/agent-fetch`，Agent 即可在内置抓取能力不足时调用 `agent-fetch`。
+
+`agent-fetch` 从命令行读取参数、向 stdout 输出 Markdown，可以轻松集成到任意 Agent 管线或基于 shell 的工具调用：
+
+```bash
+result=$(agent-fetch --mode static https://example.com)
+```
+
+## 什么场景需要这个工具？
+
+下表将 agent-fetch 与部分编程 Agent 内置的网页抓取能力做对比。各产品的内置能力因版本而异。
+
+| 场景 | 内置 web fetch | agent-fetch |
+|------|:--------------:|:-----------:|
+| 基础页面抓取 + HTML 简化 | 支持 | 支持 |
+| JS 渲染页面（SPA） | 取决于产品 | 支持（无头浏览器） |
+| 自定义请求头（认证、Cookie） | 取决于产品 | 支持（`--header`） |
+| 不做 AI 摘要（直接输出抽取到的正文） | 取决于产品 | 支持（受 `--max-body-bytes` 限制） |
+| 批量并发抓取多个 URL | 取决于产品 | 支持（`--concurrency`） |
+| CSS 选择器等待/抽取 | 取决于产品 | 支持（`--wait-selector`） |
+| 在编程 Agent 之外使用（CLI、CI/CD） | 不适用 | 支持（独立 CLI） |
+
+**内置 web fetch 的典型工作方式：** Claude Code 的 WebFetch、Codex 的内置抓取等工具，通常通过 HTTP 请求获取页面，将 HTML 转换为 Markdown，然后由 AI 模型对内容进行摘要或截断以适应上下文窗口。这一流程速度快、能覆盖大多数页面，但通常不执行 JavaScript（SPA 等 JS 渲染页面可能返回不完整的内容）、不支持自定义请求头，且一次只处理单个 URL。
+
+- **没有内置 web fetch 工具**（其他 Agent 框架、CLI 管线、CI/CD）-- 直接用 agent-fetch 作为主力抓取工具。
+- **有内置 web fetch 工具** -- 用 agent-fetch 补充处理 JS 重度页面、认证接口、批量抓取，或需要未经摘要的原始抽取内容的场景。
+
+## 运行时依赖
+
+`browser` 和 `auto` 模式可能需要宿主机上安装 Chrome 或 Chromium。
+
+使用 `--mode static` 或 `--mode raw` 可完全避免浏览器依赖。
 
 ## 构建
 
