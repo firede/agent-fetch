@@ -29,6 +29,14 @@ func (e *exitStatusError) Error() string {
 }
 
 func main() {
+	cli.VersionPrinter = func(cmd *cli.Command) {
+		w := cmd.Root().Writer
+		if w == nil {
+			w = os.Stdout
+		}
+		fmt.Fprintln(w, cmd.Version)
+	}
+
 	defaultCfg := fetcher.DefaultConfig()
 	cmd := &cli.Command{
 		Name:  "agent-fetch",
