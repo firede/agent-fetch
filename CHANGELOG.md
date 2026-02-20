@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- Added `--doctor` to run environment diagnostics and report browser/runtime readiness for `auto`/`browser` modes.
+- Added actionable remediation output for missing or non-working headless browser setups across Linux/macOS/Windows environments.
+- Added `--browser-path` to explicitly configure the browser executable (useful for containers and custom installations).
+- Added unit tests for doctor-mode browser detection and probe behavior.
+
+### Changed
+- Updated README (EN/ZH) with `--doctor` usage and diagnostics guidance.
+- Updated `skills/agent-fetch/SKILL.md` with `--doctor` / `--browser-path` command patterns and browser troubleshooting guidance.
+- Unified browser executable resolution between `--doctor` and runtime `browser` mode.
+
 ## [0.3.0] - 2026-02-19
 
 ### Added

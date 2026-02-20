@@ -116,6 +116,8 @@ agent-fetch [options] <url> [url ...]
 | `--user-agent` | `agent-fetch/0.1` | User-Agent 请求头 |
 | `--max-body-bytes` | `8388608` | 最大响应读取字节数 |
 | `--concurrency` | `4` | 多 URL 请求时的最大并发数 |
+| `--doctor` | `false` | 运行环境检查（运行时 + 无头浏览器可用性），并输出修复建议 |
+| `--browser-path` | | 为 `browser` / `auto` 模式指定浏览器可执行文件路径或名称 |
 
 ### 示例
 
@@ -125,6 +127,9 @@ agent-fetch https://example.com
 
 # 强制浏览器渲染 JS 重度页面
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+
+# 指定浏览器二进制（容器/自定义安装场景常用）
+agent-fetch --mode browser --browser-path /usr/bin/chromium https://example.com
 
 # 静态抽取，不带 front matter
 agent-fetch --mode static --meta=false https://example.com
@@ -137,6 +142,12 @@ agent-fetch --header "Authorization: Bearer $TOKEN" https://example.com
 
 # 批量抓取，控制并发
 agent-fetch --concurrency 4 https://example.com https://example.org
+
+# 检查环境可用性
+agent-fetch --doctor
+
+# 使用指定浏览器路径进行环境检查
+agent-fetch --doctor --browser-path /usr/bin/chromium
 ```
 
 ## 多 URL 批量抓取
@@ -188,6 +199,9 @@ result=$(agent-fetch --mode static https://example.com)
 `browser` 和 `auto` 模式可能需要宿主机上安装 Chrome 或 Chromium。
 
 使用 `--mode static` 或 `--mode raw` 可完全避免浏览器依赖。
+
+- 可以运行 `agent-fetch --doctor` 检查运行时/浏览器可用性，并在浏览器模式不可用时获得修复建议。
+- 当浏览器安装在非默认位置（例如容器镜像内自定义路径）时，使用 `--browser-path` 指定可执行文件。
 
 ## 构建
 

@@ -116,6 +116,8 @@ agent-fetch [options] <url> [url ...]
 | `--user-agent` | `agent-fetch/0.1` | User-Agent header |
 | `--max-body-bytes` | `8388608` | Max response bytes to read |
 | `--concurrency` | `4` | Max concurrent fetches for multi-URL requests |
+| `--doctor` | `false` | Run environment checks (runtime + headless browser readiness) and print remediation guidance |
+| `--browser-path` | | Browser executable path/name override for `browser` and `auto` modes |
 
 ### Examples
 
@@ -125,6 +127,9 @@ agent-fetch https://example.com
 
 # Force browser rendering for a JS-heavy page
 agent-fetch --mode browser --wait-selector 'article' https://example.com
+
+# Force a specific browser binary (useful in containers/custom installs)
+agent-fetch --mode browser --browser-path /usr/bin/chromium https://example.com
 
 # Static extraction without front matter
 agent-fetch --mode static --meta=false https://example.com
@@ -137,6 +142,12 @@ agent-fetch --header "Authorization: Bearer $TOKEN" https://example.com
 
 # Batch fetch with concurrency control
 agent-fetch --concurrency 4 https://example.com https://example.org
+
+# Check environment readiness
+agent-fetch --doctor
+
+# Check environment readiness with explicit browser path
+agent-fetch --doctor --browser-path /usr/bin/chromium
 ```
 
 ## Multi-URL Batch
@@ -188,6 +199,9 @@ The table below compares agent-fetch with the built-in web-fetch capabilities fo
 `browser` and `auto` modes may require Chrome or Chromium on the host.
 
 Use `--mode static` or `--mode raw` to avoid the browser dependency entirely.
+
+- Run `agent-fetch --doctor` to validate runtime/browser readiness and get guided fixes.
+- Use `--browser-path` when the browser is installed in a non-default location (common in container images).
 
 ## Build
 

@@ -42,6 +42,7 @@ type Config struct {
 	Mode           string
 	Timeout        time.Duration
 	BrowserTimeout time.Duration
+	BrowserPath    string
 	NetworkIdle    time.Duration
 	WaitSelector   string
 	UserAgent      string
@@ -69,6 +70,7 @@ func DefaultConfig() Config {
 		Mode:           ModeAuto,
 		Timeout:        20 * time.Second,
 		BrowserTimeout: 30 * time.Second,
+		BrowserPath:    "",
 		NetworkIdle:    1200 * time.Millisecond,
 		UserAgent:      "agent-fetch/0.1",
 		Headers:        make(http.Header),
@@ -294,7 +296,13 @@ func staticHTMLToMarkdown(body []byte, pageURL string, minQualityText int) (stri
 }
 
 func browserHTMLToMarkdown(ctx context.Context, rawURL string, cfg Config) (string, string, error) {
+	browserExecPath, _, err := ResolveBrowserExecutablePath(cfg.BrowserPath)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve browser executable: %w", err)
+	}
+
 	allocOpts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(browserExecPath),
 		chromedp.NoDefaultBrowserCheck,
 		chromedp.NoFirstRun,
 	)

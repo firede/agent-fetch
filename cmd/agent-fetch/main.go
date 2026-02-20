@@ -61,8 +61,21 @@ func main() {
 				Name:  "header",
 				Usage: "custom request header, repeatable. Example: --header 'Authorization: Bearer token'",
 			},
+			&cli.BoolFlag{Name: "doctor", Usage: "run environment checks (browser/runtime) and print remediation guidance"},
+			&cli.StringFlag{Name: "browser-path", Value: defaultCfg.BrowserPath, Usage: "browser executable path/name override for browser/auto modes"},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
+			if c.Bool("doctor") {
+				status, err := runDoctor(ctx, os.Stdout, c.String("browser-path"))
+				if err != nil {
+					return &exitStatusError{code: 1, msg: fmt.Sprintf("doctor failed: %v", err)}
+				}
+				if status == doctorStatusWarn {
+					return &exitStatusError{code: 1, msg: "doctor: environment check failed, see output above for details"}
+				}
+				return nil
+			}
+
 			if c.Args().Len() < 1 {
 				_ = cli.ShowRootCommandHelp(c)
 				return &exitStatusError{code: 2}
@@ -73,6 +86,7 @@ func main() {
 			cfg.IncludeMeta = c.Bool("meta")
 			cfg.Timeout = c.Duration("timeout")
 			cfg.BrowserTimeout = c.Duration("browser-timeout")
+			cfg.BrowserPath = c.String("browser-path")
 			cfg.NetworkIdle = c.Duration("network-idle")
 			cfg.WaitSelector = c.String("wait-selector")
 			cfg.UserAgent = c.String("user-agent")
