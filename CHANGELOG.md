@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-21
+
 ### Added
 - Added `--doctor` to run environment diagnostics and report browser/runtime readiness for `auto`/`browser` modes.
 - Added actionable remediation output for missing or non-working headless browser setups across Linux/macOS/Windows environments.
