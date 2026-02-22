@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-22
+
 ### Breaking
 - Removed root-level `--doctor`; diagnostics must now be invoked via `agent-fetch doctor`.
 
@@ -15,6 +17,7 @@ All notable changes to this project are documented in this file.
 ### Changed
 - Changed metadata behavior in JSONL mode: `--meta` now emits structured `meta` fields instead of front matter injection in `content`.
 - Changed CLI command routing to use an internal `web` command for fetch flags while preserving shorthand (`agent-fetch <url>`), so `doctor --help` no longer shows fetch options as global flags.
+- Changed shorthand routing resolution to respect dynamically registered subcommands, preventing future command names from being misrouted to `web`.
 - Changed root help output to include a dedicated "DEFAULT WEB OPTIONS" section for shorthand discoverability from `agent-fetch -h`.
 - Updated README (EN/ZH) and `skills/agent-fetch/SKILL.md` for `--format jsonl` and the new doctor command shape.
 
