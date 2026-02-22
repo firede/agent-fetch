@@ -100,6 +100,8 @@ Ensure `$(go env GOPATH)/bin` (usually `~/go/bin`) is in your `PATH`.
 
 ```bash
 agent-fetch [options] <url> [url ...]
+agent-fetch web [options] <url> [url ...]
+agent-fetch doctor [options]
 ```
 
 ### Flags
@@ -107,7 +109,8 @@ agent-fetch [options] <url> [url ...]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--mode` | `auto` | Fetch mode: `auto` \| `static` \| `browser` \| `raw` |
-| `--meta` | `true` | Prepend `title`/`description` front matter (use `--meta=false` to disable) |
+| `--format` | `markdown` | Output format: `markdown` \| `jsonl` |
+| `--meta` | `true` | Include `title`/`description` metadata (`markdown`: front matter, `jsonl`: `meta` field; use `--meta=false` to disable) |
 | `--timeout` | `20s` | HTTP request timeout (applies to static/auto modes) |
 | `--browser-timeout` | `30s` | Page-load timeout (applies to browser/auto modes) |
 | `--network-idle` | `1200ms` | Wait time after last network activity before capturing content |
@@ -116,7 +119,6 @@ agent-fetch [options] <url> [url ...]
 | `--user-agent` | `agent-fetch/0.1` | User-Agent header |
 | `--max-body-bytes` | `8388608` | Max response bytes to read |
 | `--concurrency` | `4` | Max concurrent fetches for multi-URL requests |
-| `--doctor` | `false` | Run environment checks (runtime + headless browser readiness) and print remediation guidance |
 | `--browser-path` | | Browser executable path/name override for `browser` and `auto` modes |
 
 ### Examples
@@ -143,14 +145,17 @@ agent-fetch --header "Authorization: Bearer $TOKEN" https://example.com
 # Batch fetch with concurrency control
 agent-fetch --concurrency 4 https://example.com https://example.org
 
+# Structured JSONL output
+agent-fetch --format jsonl https://example.com
+
 # Check environment readiness
-agent-fetch --doctor
+agent-fetch doctor
 
 # Check environment readiness with explicit browser path
-agent-fetch --doctor --browser-path /usr/bin/chromium
+agent-fetch doctor --browser-path /usr/bin/chromium
 ```
 
-## Multi-URL Batch
+## Multi-URL Batch (Markdown)
 
 When multiple URLs are provided, requests run concurrently (controlled by `--concurrency`) and output is emitted in input order using task markers:
 
@@ -165,11 +170,26 @@ When multiple URLs are provided, requests run concurrently (controlled by `--con
 
 Exit codes: `0` all succeeded, `1` any task failed, `2` argument/usage error.
 
+## JSONL Output Contract
+
+When `--format jsonl` is used, each task emits one JSON line (no summary line):
+
+```json
+{"seq":1,"url":"https://example.com","resolved_mode":"static","content":"...","meta":{"title":"...","description":"..."}}
+{"seq":2,"url":"https://bad.example","error":"http request failed: timeout"}
+```
+
+Field notes:
+- `url`: input URL
+- `resolved_url`: emitted only when different from `url`
+- `resolved_mode`: one of `markdown`, `static`, `browser`, `raw`
+- `meta`: emitted only when `--meta=true` and metadata exists
+
 ## Agent Integration
 
 This project ships a [SKILL.md](./skills/agent-fetch/SKILL.md) that can be used with coding agents that support skill files. Point your skill directory to `skills/agent-fetch` and the agent will be able to invoke `agent-fetch` when its built-in fetch capability is insufficient.
 
-`agent-fetch` reads from the command line and writes Markdown to stdout, making it easy to integrate into any agent pipeline or shell-based tool call:
+`agent-fetch` reads from the command line and writes results to stdout (`markdown` or `jsonl`), making it easy to integrate into any agent pipeline or shell-based tool call:
 
 ```bash
 result=$(agent-fetch --mode static https://example.com)
@@ -200,7 +220,7 @@ The table below compares agent-fetch with the built-in web-fetch capabilities fo
 
 Use `--mode static` or `--mode raw` to avoid the browser dependency entirely.
 
-- Run `agent-fetch --doctor` to validate runtime/browser readiness and get guided fixes.
+- Run `agent-fetch doctor` to validate runtime/browser readiness and get guided fixes.
 - Use `--browser-path` when the browser is installed in a non-default location (common in container images).
 
 ## Build

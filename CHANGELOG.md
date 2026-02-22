@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Breaking
+- Removed root-level `--doctor`; diagnostics must now be invoked via `agent-fetch doctor`.
+
+### Added
+- Added `--format` for fetch output selection: `markdown` (default) or `jsonl`.
+- Added token-efficient JSONL task payloads with `seq`, `url`, optional `resolved_url`, `resolved_mode`, `content`, optional `meta`, and per-task error rows.
+- Added tests for JSONL batch writing, metadata extraction behavior, and safeguards for unknown front matter fields.
+
+### Changed
+- Changed metadata behavior in JSONL mode: `--meta` now emits structured `meta` fields instead of front matter injection in `content`.
+- Changed CLI command routing to use an internal `web` command for fetch flags while preserving shorthand (`agent-fetch <url>`), so `doctor --help` no longer shows fetch options as global flags.
+- Changed root help output to include a dedicated "DEFAULT WEB OPTIONS" section for shorthand discoverability from `agent-fetch -h`.
+- Updated README (EN/ZH) and `skills/agent-fetch/SKILL.md` for `--format jsonl` and the new doctor command shape.
+
 ## [0.4.0] - 2026-02-21
 
 ### Added

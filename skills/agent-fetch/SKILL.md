@@ -87,19 +87,25 @@ agent-fetch --meta=false https://example.com
 Diagnose browser readiness:
 
 ```bash
-agent-fetch --doctor
+agent-fetch doctor
 ```
 
 Use a custom browser path (useful in containers):
 
 ```bash
-agent-fetch --browser-path /usr/bin/chromium https://example.com
+agent-fetch doctor --browser-path /usr/bin/chromium
+```
+
+Structured JSONL output:
+
+```bash
+agent-fetch --format jsonl https://example.com
 ```
 
 ## Output contract
 
-- Fetched content is written to `stdout` as Markdown.
-- For multiple URLs, output uses task markers:
+- Fetched content is written to `stdout` in the selected format (`markdown` or `jsonl`).
+- In `markdown` mode with multiple URLs, output uses task markers:
 
 ```text
 <!-- count: N, succeeded: X, failed: Y -->
@@ -110,6 +116,13 @@ agent-fetch --browser-path /usr/bin/chromium https://example.com
 <!-- error[2]: <error text> -->
 ```
 
+- In `jsonl` mode, each task emits one JSON line:
+
+```json
+{"seq":1,"url":"https://example.com","resolved_mode":"static","content":"...","meta":{"title":"...","description":"..."}}
+{"seq":2,"url":"https://bad.example","error":"http request failed: timeout"}
+```
+
 - Exit code `0`: all succeeded. `1`: any task failed. `2`: argument/usage error.
 
 ## Error handling
@@ -117,7 +130,7 @@ agent-fetch --browser-path /usr/bin/chromium https://example.com
 | Symptom | Likely cause | Remedy |
 |---------|-------------|--------|
 | Empty or very short output in `auto` mode | Static extraction yielded low quality, browser not available | Install Chrome/Chromium, or use `--mode browser` explicitly |
-| Browser not found or startup crash | Chrome/Chromium missing or misconfigured | Run `agent-fetch --doctor` for guided diagnosis; use `--browser-path` for non-default locations |
+| Browser not found or startup crash | Chrome/Chromium missing or misconfigured | Run `agent-fetch doctor` for guided diagnosis; use `--browser-path` for non-default locations |
 | Timeout error | Page loads slowly | Increase `--timeout` (for static) or `--browser-timeout` (for browser) |
 | Content missing dynamic elements | Page requires JS rendering | Use `--mode browser`, optionally with `--wait-selector` |
 | Auth/403 errors | Endpoint requires credentials | Add `--header "Authorization: Bearer $TOKEN"` or `--header 'Cookie: ...'` |

@@ -100,6 +100,8 @@ go install github.com/firede/agent-fetch/cmd/agent-fetch@v0.3.0
 
 ```bash
 agent-fetch [options] <url> [url ...]
+agent-fetch web [options] <url> [url ...]
+agent-fetch doctor [options]
 ```
 
 ### 参数
@@ -107,7 +109,8 @@ agent-fetch [options] <url> [url ...]
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--mode` | `auto` | 抓取模式：`auto` \| `static` \| `browser` \| `raw` |
-| `--meta` | `true` | 输出前附加 `title`/`description` front matter（`--meta=false` 可禁用） |
+| `--format` | `markdown` | 输出格式：`markdown` \| `jsonl` |
+| `--meta` | `true` | 附加 `title`/`description` 元数据（`markdown` 写入 front matter，`jsonl` 写入 `meta` 字段；`--meta=false` 可禁用） |
 | `--timeout` | `20s` | HTTP 请求超时（适用于 static/auto 模式） |
 | `--browser-timeout` | `30s` | 页面加载超时（适用于 browser/auto 模式） |
 | `--network-idle` | `1200ms` | 最后一次网络活动后等待多久再抓取页面内容 |
@@ -116,7 +119,6 @@ agent-fetch [options] <url> [url ...]
 | `--user-agent` | `agent-fetch/0.1` | User-Agent 请求头 |
 | `--max-body-bytes` | `8388608` | 最大响应读取字节数 |
 | `--concurrency` | `4` | 多 URL 请求时的最大并发数 |
-| `--doctor` | `false` | 运行环境检查（运行时 + 无头浏览器可用性），并输出修复建议 |
 | `--browser-path` | | 为 `browser` / `auto` 模式指定浏览器可执行文件路径或名称 |
 
 ### 示例
@@ -143,14 +145,17 @@ agent-fetch --header "Authorization: Bearer $TOKEN" https://example.com
 # 批量抓取，控制并发
 agent-fetch --concurrency 4 https://example.com https://example.org
 
+# 结构化 JSONL 输出
+agent-fetch --format jsonl https://example.com
+
 # 检查环境可用性
-agent-fetch --doctor
+agent-fetch doctor
 
 # 使用指定浏览器路径进行环境检查
-agent-fetch --doctor --browser-path /usr/bin/chromium
+agent-fetch doctor --browser-path /usr/bin/chromium
 ```
 
-## 多 URL 批量抓取
+## 多 URL 批量抓取（Markdown）
 
 传入多个 URL 时，请求会并发执行（通过 `--concurrency` 控制），按输入顺序输出，使用任务标记区分各结果：
 
@@ -165,11 +170,26 @@ agent-fetch --doctor --browser-path /usr/bin/chromium
 
 退出码：全部成功为 `0`，部分或全部失败为 `1`，参数/用法错误为 `2`。
 
+## JSONL 输出约定
+
+当使用 `--format jsonl` 时，每个任务输出一行 JSON（不输出汇总行）：
+
+```json
+{"seq":1,"url":"https://example.com","resolved_mode":"static","content":"...","meta":{"title":"...","description":"..."}}
+{"seq":2,"url":"https://bad.example","error":"http request failed: timeout"}
+```
+
+字段说明：
+- `url`：输入 URL
+- `resolved_url`：仅在与 `url` 不同时输出
+- `resolved_mode`：`markdown`、`static`、`browser`、`raw` 之一
+- `meta`：仅在 `--meta=true` 且存在元数据时输出
+
 ## Agent 集成
 
 项目附带一份 [SKILL.md](./skills/agent-fetch/SKILL.md)，可供支持 skill 文件的编程 Agent 使用。将 skill 目录指向 `skills/agent-fetch`，Agent 即可在内置抓取能力不足时调用 `agent-fetch`。
 
-`agent-fetch` 从命令行读取参数、向 stdout 输出 Markdown，可以轻松集成到任意 Agent 管线或基于 shell 的工具调用：
+`agent-fetch` 从命令行读取参数、向 stdout 输出结果（`markdown` 或 `jsonl`），可以轻松集成到任意 Agent 管线或基于 shell 的工具调用：
 
 ```bash
 result=$(agent-fetch --mode static https://example.com)
@@ -200,7 +220,7 @@ result=$(agent-fetch --mode static https://example.com)
 
 使用 `--mode static` 或 `--mode raw` 可完全避免浏览器依赖。
 
-- 可以运行 `agent-fetch --doctor` 检查运行时/浏览器可用性，并在浏览器模式不可用时获得修复建议。
+- 可以运行 `agent-fetch doctor` 检查运行时/浏览器可用性，并在浏览器模式不可用时获得修复建议。
 - 当浏览器安装在非默认位置（例如容器镜像内自定义路径）时，使用 `--browser-path` 指定可执行文件。
 
 ## 构建
