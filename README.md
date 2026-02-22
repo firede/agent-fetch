@@ -1,12 +1,19 @@
+<div align="center">
+
 # agent-fetch
 
-Fetch web pages as clean Markdown for AI-agent workflows.
-
-[中文](./README.zh.md) | **English**
+Local Agent Material Pipeline for LLMs.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Go](https://github.com/firede/agent-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/firede/agent-fetch/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/firede/agent-fetch)](https://github.com/firede/agent-fetch/releases)
+[![Release](https://img.shields.io/github/v/release/firede/agent-fetch)](https://github.com/firede/agent-fetch/releases)<br/>
+![Local-only](https://img.shields.io/badge/Local--only-Yes-emerald)
+![Token-efficient](https://img.shields.io/badge/Token--efficient-Yes-emerald)
+![Agent-ready](https://img.shields.io/badge/Agent--ready-Yes-emerald)
+
+[中文](./README.zh.md) | **English**
+
+</div>
 
 ## Highlights
 
@@ -50,12 +57,12 @@ This means most pages are handled without a browser, keeping things fast, while 
 
 ## Modes
 
-| Mode | Behavior | Browser needed |
-|------|----------|----------------|
+| Mode             | Behavior                                                                     | Browser needed                  |
+| ---------------- | ---------------------------------------------------------------------------- | ------------------------------- |
 | `auto` (default) | Three-stage fallback: native Markdown -> static extraction -> browser render | Only when static quality is low |
-| `static` | Static HTML extraction only, no browser | No |
-| `browser` | Always use headless Chrome/Chromium | Yes |
-| `raw` | Send `Accept: text/markdown`, return HTTP body verbatim | No |
+| `static`         | Static HTML extraction only, no browser                                      | No                              |
+| `browser`        | Always use headless Chrome/Chromium                                          | Yes                             |
+| `raw`            | Send `Accept: text/markdown`, return HTTP body verbatim                      | No                              |
 
 ## Installation
 
@@ -106,20 +113,20 @@ agent-fetch doctor [options]
 
 ### Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--mode` | `auto` | Fetch mode: `auto` \| `static` \| `browser` \| `raw` |
-| `--format` | `markdown` | Output format: `markdown` \| `jsonl` |
-| `--meta` | `true` | Include `title`/`description` metadata (`markdown`: front matter, `jsonl`: `meta` field; use `--meta=false` to disable) |
-| `--timeout` | `20s` | HTTP request timeout (applies to static/auto modes) |
-| `--browser-timeout` | `30s` | Page-load timeout (applies to browser/auto modes) |
-| `--network-idle` | `1200ms` | Wait time after last network activity before capturing content |
-| `--wait-selector` | | CSS selector to wait for before capturing, e.g. `article` |
-| `--header` | | Custom request header, repeatable. e.g. `--header 'Authorization: Bearer token'` |
-| `--user-agent` | `agent-fetch/0.1` | User-Agent header |
-| `--max-body-bytes` | `8388608` | Max response bytes to read |
-| `--concurrency` | `4` | Max concurrent fetches for multi-URL requests |
-| `--browser-path` | | Browser executable path/name override for `browser` and `auto` modes |
+| Flag                | Default           | Description                                                                                                             |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `--mode`            | `auto`            | Fetch mode: `auto` \| `static` \| `browser` \| `raw`                                                                    |
+| `--format`          | `markdown`        | Output format: `markdown` \| `jsonl`                                                                                    |
+| `--meta`            | `true`            | Include `title`/`description` metadata (`markdown`: front matter, `jsonl`: `meta` field; use `--meta=false` to disable) |
+| `--timeout`         | `20s`             | HTTP request timeout (applies to static/auto modes)                                                                     |
+| `--browser-timeout` | `30s`             | Page-load timeout (applies to browser/auto modes)                                                                       |
+| `--network-idle`    | `1200ms`          | Wait time after last network activity before capturing content                                                          |
+| `--wait-selector`   |                   | CSS selector to wait for before capturing, e.g. `article`                                                               |
+| `--header`          |                   | Custom request header, repeatable. e.g. `--header 'Authorization: Bearer token'`                                        |
+| `--user-agent`      | `agent-fetch/0.1` | User-Agent header                                                                                                       |
+| `--max-body-bytes`  | `8388608`         | Max response bytes to read                                                                                              |
+| `--concurrency`     | `4`               | Max concurrent fetches for multi-URL requests                                                                           |
+| `--browser-path`    |                   | Browser executable path/name override for `browser` and `auto` modes                                                    |
 
 ### Examples
 
@@ -180,6 +187,7 @@ When `--format jsonl` is used, each task emits one JSON line (no summary line):
 ```
 
 Field notes:
+
 - `url`: input URL
 - `resolved_url`: emitted only when different from `url`
 - `resolved_mode`: one of `markdown`, `static`, `browser`, `raw`
@@ -199,15 +207,15 @@ result=$(agent-fetch --mode static https://example.com)
 
 The table below compares agent-fetch with the built-in web-fetch capabilities found in some coding agents. Actual built-in capabilities vary by product and version.
 
-| Scenario | Built-in web fetch | agent-fetch |
-|----------|:------------------:|:-----------:|
-| Basic page fetch with HTML simplification | Yes | Yes |
-| JavaScript-rendered pages (SPAs) | Varies | Yes (headless browser) |
-| Custom headers (auth, cookies) | Varies | Yes (`--header`) |
-| No AI summarization (outputs extracted body as-is) | Varies | Yes (subject to `--max-body-bytes`) |
-| Batch fetch multiple URLs concurrently | Varies | Yes (`--concurrency`) |
-| CSS selector-based wait/extraction | Varies | Yes (`--wait-selector`) |
-| Works outside coding agents (CLI, CI/CD) | N/A | Yes (standalone CLI) |
+| Scenario                                           | Built-in web fetch |             agent-fetch             |
+| -------------------------------------------------- | :----------------: | :---------------------------------: |
+| Basic page fetch with HTML simplification          |        Yes         |                 Yes                 |
+| JavaScript-rendered pages (SPAs)                   |       Varies       |       Yes (headless browser)        |
+| Custom headers (auth, cookies)                     |       Varies       |          Yes (`--header`)           |
+| No AI summarization (outputs extracted body as-is) |       Varies       | Yes (subject to `--max-body-bytes`) |
+| Batch fetch multiple URLs concurrently             |       Varies       |        Yes (`--concurrency`)        |
+| CSS selector-based wait/extraction                 |       Varies       |       Yes (`--wait-selector`)       |
+| Works outside coding agents (CLI, CI/CD)           |        N/A         |        Yes (standalone CLI)         |
 
 **How built-in web fetch typically works:** Tools like Claude Code's WebFetch and Codex's built-in fetch retrieve a page over HTTP, convert the HTML to Markdown, and then pass the content through an AI model that may summarize or truncate it to fit the context window. This pipeline is fast and sufficient for most pages, but it usually does not execute JavaScript (so SPA or JS-rendered pages may return incomplete content), does not support custom request headers, and processes one URL at a time.
 

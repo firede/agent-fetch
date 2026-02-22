@@ -1,12 +1,19 @@
+<div align="center">
+
 # agent-fetch
 
-将网页转换为干净的 Markdown，专为 AI Agent 工作流设计。
-
-**中文** | [English](./README.md)
+面向 LLM 的本地 Agent 物料管线。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Go](https://github.com/firede/agent-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/firede/agent-fetch/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/firede/agent-fetch)](https://github.com/firede/agent-fetch/releases)
+[![Release](https://img.shields.io/github/v/release/firede/agent-fetch)](https://github.com/firede/agent-fetch/releases)<br/>
+![Local-only](https://img.shields.io/badge/Local--only-Yes-emerald)
+![Token-efficient](https://img.shields.io/badge/Token--efficient-Yes-emerald)
+![Agent-ready](https://img.shields.io/badge/Agent--ready-Yes-emerald)
+
+**中文** | [English](./README.md)
+
+</div>
 
 ## 亮点
 
@@ -50,12 +57,12 @@ agent-fetch https://example.com
 
 ## 模式
 
-| 模式 | 行为 | 需要浏览器 |
-|------|------|-----------|
+| 模式           | 行为                                                   | 需要浏览器         |
+| -------------- | ------------------------------------------------------ | ------------------ |
 | `auto`（默认） | 三级 fallback：原生 Markdown -> 静态抽取 -> 浏览器渲染 | 仅在静态质量不足时 |
-| `static` | 仅静态 HTML 抽取，不使用浏览器 | 否 |
-| `browser` | 始终使用无头 Chrome/Chromium | 是 |
-| `raw` | 发送 `Accept: text/markdown`，原样返回 HTTP 响应体 | 否 |
+| `static`       | 仅静态 HTML 抽取，不使用浏览器                         | 否                 |
+| `browser`      | 始终使用无头 Chrome/Chromium                           | 是                 |
+| `raw`          | 发送 `Accept: text/markdown`，原样返回 HTTP 响应体     | 否                 |
 
 ## 安装
 
@@ -106,20 +113,20 @@ agent-fetch doctor [options]
 
 ### 参数
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--mode` | `auto` | 抓取模式：`auto` \| `static` \| `browser` \| `raw` |
-| `--format` | `markdown` | 输出格式：`markdown` \| `jsonl` |
-| `--meta` | `true` | 附加 `title`/`description` 元数据（`markdown` 写入 front matter，`jsonl` 写入 `meta` 字段；`--meta=false` 可禁用） |
-| `--timeout` | `20s` | HTTP 请求超时（适用于 static/auto 模式） |
-| `--browser-timeout` | `30s` | 页面加载超时（适用于 browser/auto 模式） |
-| `--network-idle` | `1200ms` | 最后一次网络活动后等待多久再抓取页面内容 |
-| `--wait-selector` | | 等待指定 CSS 选择器出现后再抓取，如 `article` |
-| `--header` | | 自定义请求头，可重复使用。如 `--header 'Authorization: Bearer token'` |
-| `--user-agent` | `agent-fetch/0.1` | User-Agent 请求头 |
-| `--max-body-bytes` | `8388608` | 最大响应读取字节数 |
-| `--concurrency` | `4` | 多 URL 请求时的最大并发数 |
-| `--browser-path` | | 为 `browser` / `auto` 模式指定浏览器可执行文件路径或名称 |
+| 参数                | 默认值            | 说明                                                                                                               |
+| ------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `--mode`            | `auto`            | 抓取模式：`auto` \| `static` \| `browser` \| `raw`                                                                 |
+| `--format`          | `markdown`        | 输出格式：`markdown` \| `jsonl`                                                                                    |
+| `--meta`            | `true`            | 附加 `title`/`description` 元数据（`markdown` 写入 front matter，`jsonl` 写入 `meta` 字段；`--meta=false` 可禁用） |
+| `--timeout`         | `20s`             | HTTP 请求超时（适用于 static/auto 模式）                                                                           |
+| `--browser-timeout` | `30s`             | 页面加载超时（适用于 browser/auto 模式）                                                                           |
+| `--network-idle`    | `1200ms`          | 最后一次网络活动后等待多久再抓取页面内容                                                                           |
+| `--wait-selector`   |                   | 等待指定 CSS 选择器出现后再抓取，如 `article`                                                                      |
+| `--header`          |                   | 自定义请求头，可重复使用。如 `--header 'Authorization: Bearer token'`                                              |
+| `--user-agent`      | `agent-fetch/0.1` | User-Agent 请求头                                                                                                  |
+| `--max-body-bytes`  | `8388608`         | 最大响应读取字节数                                                                                                 |
+| `--concurrency`     | `4`               | 多 URL 请求时的最大并发数                                                                                          |
+| `--browser-path`    |                   | 为 `browser` / `auto` 模式指定浏览器可执行文件路径或名称                                                           |
 
 ### 示例
 
@@ -180,6 +187,7 @@ agent-fetch doctor --browser-path /usr/bin/chromium
 ```
 
 字段说明：
+
 - `url`：输入 URL
 - `resolved_url`：仅在与 `url` 不同时输出
 - `resolved_mode`：`markdown`、`static`、`browser`、`raw` 之一
@@ -199,15 +207,15 @@ result=$(agent-fetch --mode static https://example.com)
 
 下表将 agent-fetch 与部分编程 Agent 内置的网页抓取能力做对比。各产品的内置能力因版本而异。
 
-| 场景 | 内置 web fetch | agent-fetch |
-|------|:--------------:|:-----------:|
-| 基础页面抓取 + HTML 简化 | 支持 | 支持 |
-| JS 渲染页面（SPA） | 取决于产品 | 支持（无头浏览器） |
-| 自定义请求头（认证、Cookie） | 取决于产品 | 支持（`--header`） |
-| 不做 AI 摘要（直接输出抽取到的正文） | 取决于产品 | 支持（受 `--max-body-bytes` 限制） |
-| 批量并发抓取多个 URL | 取决于产品 | 支持（`--concurrency`） |
-| CSS 选择器等待/抽取 | 取决于产品 | 支持（`--wait-selector`） |
-| 在编程 Agent 之外使用（CLI、CI/CD） | 不适用 | 支持（独立 CLI） |
+| 场景                                 | 内置 web fetch |            agent-fetch             |
+| ------------------------------------ | :------------: | :--------------------------------: |
+| 基础页面抓取 + HTML 简化             |      支持      |                支持                |
+| JS 渲染页面（SPA）                   |   取决于产品   |         支持（无头浏览器）         |
+| 自定义请求头（认证、Cookie）         |   取决于产品   |         支持（`--header`）         |
+| 不做 AI 摘要（直接输出抽取到的正文） |   取决于产品   | 支持（受 `--max-body-bytes` 限制） |
+| 批量并发抓取多个 URL                 |   取决于产品   |      支持（`--concurrency`）       |
+| CSS 选择器等待/抽取                  |   取决于产品   |     支持（`--wait-selector`）      |
+| 在编程 Agent 之外使用（CLI、CI/CD）  |     不适用     |          支持（独立 CLI）          |
 
 **内置 web fetch 的典型工作方式：** Claude Code 的 WebFetch、Codex 的内置抓取等工具，通常通过 HTTP 请求获取页面，将 HTML 转换为 Markdown，然后由 AI 模型对内容进行摘要或截断以适应上下文窗口。这一流程速度快、能覆盖大多数页面，但通常不执行 JavaScript（SPA 等 JS 渲染页面可能返回不完整的内容）、不支持自定义请求头，且一次只处理单个 URL。
 
