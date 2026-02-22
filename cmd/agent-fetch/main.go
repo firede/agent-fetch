@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -73,7 +74,23 @@ func main() {
 	}
 
 	defaultCfg := fetcher.DefaultConfig()
-	cmd := &cli.Command{
+	cmd := newRootCommand(defaultCfg)
+
+	if err := cmd.Run(context.Background(), routeToDefaultWeb(os.Args, cmd)); err != nil {
+		var exitErr *exitStatusError
+		if errors.As(err, &exitErr) {
+			if msg := strings.TrimSpace(exitErr.msg); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			}
+			os.Exit(exitErr.code)
+		}
+		// urfave/cli already prints usage/parse errors to ErrWriter by default.
+		os.Exit(1)
+	}
+}
+
+func newRootCommand(defaultCfg fetcher.Config) *cli.Command {
+	return &cli.Command{
 		Name:  "agent-fetch",
 		Usage: "Fetch web pages as clean Markdown for AI-agent workflows",
 		Description: "Extracts readable content from web pages and converts it to Markdown.\n" +
@@ -107,18 +124,6 @@ func main() {
 			_ = cli.ShowRootCommandHelp(c)
 			return &exitStatusError{code: 2}
 		},
-	}
-
-	if err := cmd.Run(context.Background(), routeToDefaultWeb(os.Args)); err != nil {
-		var exitErr *exitStatusError
-		if errors.As(err, &exitErr) {
-			if msg := strings.TrimSpace(exitErr.msg); msg != "" {
-				fmt.Fprintln(os.Stderr, msg)
-			}
-			os.Exit(exitErr.code)
-		}
-		// urfave/cli already prints usage/parse errors to ErrWriter by default.
-		os.Exit(1)
 	}
 }
 
@@ -240,7 +245,7 @@ func runWebFetch(ctx context.Context, c *cli.Command) error {
 	return nil
 }
 
-func routeToDefaultWeb(args []string) []string {
+func routeToDefaultWeb(args []string, root *cli.Command) []string {
 	if len(args) <= 1 {
 		return args
 	}
@@ -249,8 +254,13 @@ func routeToDefaultWeb(args []string) []string {
 	if first == "" {
 		return args
 	}
+
+	if root != nil && root.Command(first) != nil {
+		return args
+	}
+
 	switch first {
-	case webCommandName, "doctor", "help", "h", "--help", "-h", "--version", "-v":
+	case "help", "h", "--help", "-h", "--version", "-v":
 		return args
 	}
 
@@ -258,6 +268,20 @@ func routeToDefaultWeb(args []string) []string {
 	rewritten = append(rewritten, args[0], webCommandName)
 	rewritten = append(rewritten, args[1:]...)
 	return rewritten
+}
+
+func runForTest(args []string, out, errOut io.Writer) error {
+	cli.VersionPrinter = func(cmd *cli.Command) {
+		w := cmd.Root().Writer
+		if w == nil {
+			w = os.Stdout
+		}
+		fmt.Fprintln(w, cmd.Version)
+	}
+	cmd := newRootCommand(fetcher.DefaultConfig())
+	cmd.Writer = out
+	cmd.ErrWriter = errOut
+	return cmd.Run(context.Background(), routeToDefaultWeb(args, cmd))
 }
 
 func parseHeaders(raw []string) (http.Header, error) {
